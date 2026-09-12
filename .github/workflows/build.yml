@@ -23,6 +23,8 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
 
     steps:
       # Step 1: Checkout code
@@ -32,16 +34,15 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN || github.token }}
 
-      # Step 2: Setup Node.js 20
-      - name: Setup Node.js 20
+      # Step 2: Setup Node.js (LTS)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
 
       # Step 3: npm install
       - name: npm install
-        run: npm ci || npm install
+        run: npm install
 
       # Step 4: VERSION CONFLICT HANDLER
       # Checks all existing tags and releases (both published and drafts)
