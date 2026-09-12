@@ -14,7 +14,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getDb, runMigrations, closeDb } = require('./db/database');
-const { aiHandler } = require('./ai/ai-handler');
+const { aiHandler } = require('./ai/ai-handler.js');
 
 // Keep global reference of the window object to prevent garbage collection
 let mainWindow = null;

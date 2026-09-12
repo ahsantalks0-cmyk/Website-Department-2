@@ -11,31 +11,32 @@
  * ==============================================================================
  */
 
-export class SettingsAIController {
-  constructor() {
-    this.dom = {
-      keyInput: document.getElementById('ai-api-key-input'),
-      toggleKeyBtn: document.getElementById('btn-toggle-key-visibility'),
-      keyVisibilityIcon: document.getElementById('key-visibility-icon'),
-      saveKeyBtn: document.getElementById('btn-save-ai-key'),
-      testConnBtn: document.getElementById('btn-test-ai-connection'),
-      keyStatusBadge: document.getElementById('ai-key-status-badge'),
-      connFeedback: document.getElementById('ai-connection-feedback'),
-      profilesTableBody: document.getElementById('ai-profiles-table-body'),
-      statRequestsToday: document.getElementById('ai-stat-requests-today'),
-      statTokensToday: document.getElementById('ai-stat-tokens-today'),
-      testPromptInput: document.getElementById('ai-test-prompt-input'),
-      sendTestBtn: document.getElementById('btn-send-ai-test'),
-      testResultBox: document.getElementById('ai-test-result-box'),
-      testMetricModel: document.getElementById('ai-test-metric-model'),
-      testMetricTokens: document.getElementById('ai-test-metric-tokens'),
-      testMetricLatency: document.getElementById('ai-test-metric-latency'),
-      testOutputContent: document.getElementById('ai-test-output-content'),
-    };
+(function () {
+  class SettingsAIController {
+    constructor() {
+      this.dom = {
+        keyInput: document.getElementById('ai-api-key-input'),
+        toggleKeyBtn: document.getElementById('btn-toggle-key-visibility'),
+        keyVisibilityIcon: document.getElementById('key-visibility-icon'),
+        saveKeyBtn: document.getElementById('btn-save-ai-key'),
+        testConnBtn: document.getElementById('btn-test-ai-connection'),
+        keyStatusBadge: document.getElementById('ai-key-status-badge'),
+        connFeedback: document.getElementById('ai-connection-feedback'),
+        profilesTableBody: document.getElementById('ai-profiles-table-body'),
+        statRequestsToday: document.getElementById('ai-stat-requests-today'),
+        statTokensToday: document.getElementById('ai-stat-tokens-today'),
+        testPromptInput: document.getElementById('ai-test-prompt-input'),
+        sendTestBtn: document.getElementById('btn-send-ai-test'),
+        testResultBox: document.getElementById('ai-test-result-box'),
+        testMetricModel: document.getElementById('ai-test-metric-model'),
+        testMetricTokens: document.getElementById('ai-test-metric-tokens'),
+        testMetricLatency: document.getElementById('ai-test-metric-latency'),
+        testOutputContent: document.getElementById('ai-test-output-content'),
+      };
 
-    this.isKeyConfigured = false;
-    this.isKeyRevealed = false;
-  }
+      this.isKeyConfigured = false;
+      this.isKeyRevealed = false;
+    }
 
   /**
    * Initializes event listeners and loads current configuration.
@@ -427,8 +428,10 @@ export class SettingsAIController {
   }
 }
 
-export const settingsAIController = new SettingsAIController();
-if (typeof window !== 'undefined') {
-  window.SettingsAIController = settingsAIController;
-}
+  const settingsAIController = new SettingsAIController();
+  if (typeof window !== 'undefined') {
+    window.SettingsAIController = settingsAIController;
+  }
+})();
+
 

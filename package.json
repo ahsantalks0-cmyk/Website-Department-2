@@ -25,6 +25,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "index.html",
+      "ai/**/*",
       "db/**/*",
       "src/**/*",
       "assets/**/*",
