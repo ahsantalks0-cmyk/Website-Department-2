@@ -124,6 +124,27 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 3,
+    name: '003_models_cache_table',
+    up: (db) => {
+      // 9. Live Models Cache table (persisting verified provider models)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS models_cache (
+          provider TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          features_json TEXT NOT NULL,
+          fetched_at TEXT DEFAULT (datetime('now')),
+          PRIMARY KEY (provider, model_id)
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_models_cache_provider ON models_cache(provider);
+      `);
+    },
+  },
 ];
 
 module.exports = {

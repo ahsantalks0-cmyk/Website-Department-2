@@ -154,73 +154,67 @@ const apiBridge = {
 };
 
 /**
- * Phase 3: AI Provider IPC Bridge
- * Exposes methods matching the exact specifications:
- * getStatus, saveApiKey, testConnection, generate, getUsageStats, getProfiles, setProfile
+ * Multi-Provider AI IPC Bridge
+ * Exposes methods matching the multi-provider live model architecture:
+ * getProviders, selectProvider, saveApiKey, testConnection, refreshModels,
+ * selectModel, generate, getActiveConfig, getUsageStats
  */
 const aiBridge = {
-  /**
-   * Checks if an API key is stored and configured.
-   * @returns {Promise<{configured: boolean}>}
-   */
-  getStatus: () => {
-    console.log('[Preload] Invoking ai:getStatus');
-    return ipcRenderer.invoke('ai:getStatus');
+  getProviders: () => {
+    console.log('[Preload] Invoking ai:getProviders');
+    return ipcRenderer.invoke('ai:getProviders');
   },
 
-  /**
-   * Saves and encrypts API key in SQLite settings.
-   * @param {string} key
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
-  saveApiKey: (key) => {
+  selectProvider: (providerId) => {
+    console.log('[Preload] Invoking ai:selectProvider', providerId);
+    return ipcRenderer.invoke('ai:selectProvider', providerId);
+  },
+
+  saveApiKey: (providerIdOrKey, maybeKey) => {
     console.log('[Preload] Invoking ai:saveApiKey');
-    return ipcRenderer.invoke('ai:saveApiKey', key);
+    return ipcRenderer.invoke('ai:saveApiKey', providerIdOrKey, maybeKey);
   },
 
-  /**
-   * Tests connectivity to Gemini API and fetches available models.
-   * @returns {Promise<{success: boolean, models: string[], error?: string}>}
-   */
-  testConnection: () => {
-    console.log('[Preload] Invoking ai:testConnection');
-    return ipcRenderer.invoke('ai:testConnection');
+  testConnection: (maybeProviderId) => {
+    console.log('[Preload] Invoking ai:testConnection', maybeProviderId);
+    return ipcRenderer.invoke('ai:testConnection', maybeProviderId);
   },
 
-  /**
-   * Executes generation through request queue and rate limiter.
-   * @param {{contents: any, taskProfile?: string, model?: string, schema?: object, tools?: Array, images?: Array, systemInstruction?: string, options?: object}} params
-   * @returns {Promise<{success: boolean, data?: object, error?: string}>}
-   */
+  refreshModels: (maybeProviderId) => {
+    console.log('[Preload] Invoking ai:refreshModels', maybeProviderId);
+    return ipcRenderer.invoke('ai:refreshModels', maybeProviderId);
+  },
+
+  selectModel: (providerId, modelId) => {
+    console.log('[Preload] Invoking ai:selectModel', { providerId, modelId });
+    return ipcRenderer.invoke('ai:selectModel', providerId, modelId);
+  },
+
   generate: (params) => {
     console.log('[Preload] Invoking ai:generate');
     return ipcRenderer.invoke('ai:generate', params);
   },
 
-  /**
-   * Fetches today's request count and tokens used.
-   * @returns {Promise<{requestsToday: number, tokensToday: number}>}
-   */
+  getActiveConfig: () => {
+    console.log('[Preload] Invoking ai:getActiveConfig');
+    return ipcRenderer.invoke('ai:getActiveConfig');
+  },
+
+  getStatus: () => {
+    console.log('[Preload] Invoking ai:getStatus');
+    return ipcRenderer.invoke('ai:getStatus');
+  },
+
   getUsageStats: () => {
     console.log('[Preload] Invoking ai:getUsageStats');
     return ipcRenderer.invoke('ai:getUsageStats');
   },
 
-  /**
-   * Returns task profile bindings and available model choices.
-   * @returns {Promise<{profiles: Array<{profile: string, model: string, description: string}>, availableModels: Array}>}
-   */
   getProfiles: () => {
     console.log('[Preload] Invoking ai:getProfiles');
     return ipcRenderer.invoke('ai:getProfiles');
   },
 
-  /**
-   * Rebinds a task profile to a specific model identifier.
-   * @param {string} profile
-   * @param {string} model
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
   setProfile: (profile, model) => {
     console.log('[Preload] Invoking ai:setProfile', { profile, model });
     return ipcRenderer.invoke('ai:setProfile', { profile, model });

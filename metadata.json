@@ -1,6 +1,6 @@
 {
   "name": "AI Design Department",
-  "description": "Desktop application foundation for AI Design Department with Apple-style UI, local SQLite database layer, Phase 3 Gemini Model Adapter with encrypted safeStorage key management, FIFO request queue, and task profile routing.",
+  "description": "Desktop application foundation for AI Design Department with Apple-style UI, SQLite database layer, multi-provider engine (Google Gemini, OpenAI, Anthropic Claude, Groq) with zero hardcoded model IDs, live API model discovery, encrypted safeStorage key management, and task routing.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

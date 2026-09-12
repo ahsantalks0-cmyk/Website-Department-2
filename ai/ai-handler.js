@@ -1,60 +1,74 @@
 /**
  * ==============================================================================
- * AI DESIGN DEPARTMENT — AI IPC HANDLER (ai/ai-handler.js)
+ * AI DESIGN DEPARTMENT — MULTI-PROVIDER AI IPC HANDLER (ai/ai-handler.js)
  * ==============================================================================
  * Central coordinator wiring Electron Main Process, SQLite encrypted settings,
- * Model Registry, Gemini Provider, and Request Queue.
+ * Multi-Provider Registry, Model Discovery Service, Pricing Metadata, and Request Queue.
  *
- * Exposes secure IPC channels strictly adhering to contextIsolation:
- * - ai:getStatus
+ * Exposes secure IPC channels:
+ * - ai:getProviders
+ * - ai:selectProvider
  * - ai:saveApiKey
  * - ai:testConnection
+ * - ai:refreshModels
+ * - ai:selectModel
  * - ai:generate
+ * - ai:getActiveConfig
  * - ai:getUsageStats
- * - ai:getProfiles
- * - ai:setProfile
  * ==============================================================================
  */
 
-const { ipcMain, safeStorage } = require('electron');
-const { GeminiProvider } = require('./gemini-provider');
-const { ModelRegistry } = require('./model-registry');
+let ipcMain = null;
+let safeStorage = null;
+if (process.versions && process.versions.electron) {
+  try {
+    const electron = require('electron');
+    ipcMain = electron?.ipcMain;
+    safeStorage = electron?.safeStorage;
+  } catch (e) {
+    // Fallback
+  }
+}
+const { ProviderRegistry } = require('./provider-registry');
+const { ModelService } = require('./model-service');
 const { RequestQueue } = require('./request-queue');
+const { getModelPricing } = require('./pricing-metadata');
 const { getDb } = require('../db/database');
 
 class AIHandler {
   constructor() {
-    this.provider = new GeminiProvider();
-    this.registry = new ModelRegistry();
+    this.registry = new ProviderRegistry({
+      decryptFn: (v) => this.decryptValue(v),
+      encryptFn: (v) => this.encryptValue(v),
+    });
+    this.modelService = new ModelService({ registry: this.registry });
     this.queue = new RequestQueue();
     this.isInitialized = false;
   }
 
   /**
-   * Initializes the AI subsystem with database references, stored encrypted
-   * API key, and task profile bindings.
-   * @param {object} [dbInstance] Optional direct SQLite database instance
+   * Initializes the AI subsystem with database references and starts background auto-refresh.
+   * @param {object} [dbInstance]
    */
   initialize(dbInstance) {
     if (this.isInitialized) return;
 
     const db = dbInstance || getDb();
     if (db) {
-      console.log('[AIHandler] Attaching database to ModelRegistry and RequestQueue...');
-      this.registry.initFromDb(db);
+      console.log('[AIHandler] Attaching SQLite database to ProviderRegistry, ModelService, and RequestQueue...');
+      this.registry.init(db, (v) => this.decryptValue(v), (v) => this.encryptValue(v));
+      this.modelService.setDb(db);
       this.queue.setDb(db);
+      this.modelService.startAutoRefresh();
     } else {
       console.warn('[AIHandler] SQLite database instance is not available during initialize.');
     }
-
-    // Load and decrypt stored Gemini API key
-    this.loadStoredApiKey();
 
     // Register IPC listeners
     this.registerIpcHandlers();
 
     this.isInitialized = true;
-    console.log('[AIHandler] Phase 3 Model Adapter subsystem initialized successfully.');
+    console.log('[AIHandler] Multi-provider AI subsystem initialized successfully.');
   }
 
   /**
@@ -92,7 +106,6 @@ class AIHandler {
       } else if (cipherText.startsWith('b64:')) {
         return Buffer.from(cipherText.slice(4), 'base64').toString('utf-8');
       } else {
-        // Raw or legacy value fallback
         return cipherText;
       }
     } catch (err) {
@@ -103,167 +116,224 @@ class AIHandler {
   }
 
   /**
-   * Loads stored API key from SQLite settings table and provides it to GeminiProvider.
-   */
-  loadStoredApiKey() {
-    const db = getDb();
-    let key = '';
-
-    if (db) {
-      try {
-        const row = db.prepare("SELECT value FROM settings WHERE key = 'gemini_api_key'").get();
-        if (row && row.value) {
-          key = this.decryptValue(row.value);
-        }
-      } catch (err) {
-        console.error('[AIHandler] Error loading API key from SQLite:', err.message);
-      }
-    }
-
-    if (!key && process.env.GEMINI_API_KEY) {
-      key = process.env.GEMINI_API_KEY;
-    }
-
-    if (key) {
-      this.provider.setApiKey(key);
-      console.log('[AIHandler] API key loaded into Gemini provider securely.');
-    }
-  }
-
-  /**
-   * Saves and securely stores the API key into SQLite.
-   * @param {string} rawKey
-   * @returns {{success: boolean, error?: string}}
-   */
-  saveApiKey(rawKey) {
-    const key = (rawKey || '').trim();
-    if (!key) {
-      return { success: false, error: 'Please enter a valid API key.' };
-    }
-
-    const db = getDb();
-    if (!db) {
-      console.error('[AIHandler] Cannot save API key: SQLite database unavailable.');
-      return { success: false, error: 'Database connection unavailable' };
-    }
-
-    try {
-      const encrypted = this.encryptValue(key);
-      db.prepare(
-        `INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)`
-      ).run(encrypted);
-
-      this.provider.setApiKey(key);
-      console.log('[AIHandler] Gemini API key saved to SQLite and provider updated successfully.');
-      return { success: true };
-    } catch (err) {
-      console.error('[AIHandler] Failed to persist API key to SQLite:', err.message);
-      return { success: false, error: err.message };
-    }
-  }
-
-  /**
-   * Wires all IPC endpoints requested by Phase 3 architecture.
-   * Every handler is wrapped in a try/catch and always returns a valid object
-   * to guarantee the renderer promise never hangs.
+   * Wires all IPC endpoints for multi-provider live model architecture.
    */
   registerIpcHandlers() {
-    console.log('[AIHandler] Registering IPC channels: ai:getStatus, ai:saveApiKey, ai:testConnection, ai:generate, ai:getUsageStats, ai:getProfiles, ai:setProfile');
+    console.log('[AIHandler] Registering multi-provider IPC channels...');
 
-    // 1. ai:getStatus -> { configured: boolean, error?: string }
-    ipcMain.handle('ai:getStatus', async () => {
+    // 1. ai:getProviders -> [{ id, name, configured, activeModel }]
+    ipcMain.handle('ai:getProviders', async () => {
       try {
-        const apiKey = this.provider.getApiKey();
-        const configured = Boolean(apiKey && apiKey.length > 5);
-        console.log('[AIHandler IPC] ai:getStatus -> configured:', configured);
-        return { configured };
+        const providers = this.registry.getProviders();
+        return providers;
       } catch (err) {
-        console.error('[AIHandler IPC] ai:getStatus error:', err.message);
-        return { configured: false, error: err.message };
+        console.error('[AIHandler IPC] ai:getProviders error:', err.message);
+        return [];
       }
     });
 
-    // 2. ai:saveApiKey -> { success: boolean, error?: string }
-    ipcMain.handle('ai:saveApiKey', async (_event, key) => {
+    // 2. ai:selectProvider(id) -> { success, configured, activeModel, models }
+    ipcMain.handle('ai:selectProvider', async (_event, providerId) => {
       try {
-        console.log('[AIHandler IPC] ai:saveApiKey received request');
-        const res = this.saveApiKey(key);
-        console.log('[AIHandler IPC] ai:saveApiKey completed with result:', res);
-        return res;
+        console.log(`[AIHandler IPC] Provider selected: "${providerId}"`);
+        const success = this.registry.setActiveProvider(providerId);
+        if (!success) {
+          return { success: false, error: `Invalid provider ID: ${providerId}` };
+        }
+
+        const provider = this.registry.getProvider(providerId);
+        const apiKey = provider ? provider.getApiKey() : '';
+        const configured = Boolean(apiKey && apiKey.trim().length > 3);
+        const activeModel = this.registry.getActiveModel(providerId);
+        const cachedModels = this.modelService.getCachedModels(providerId);
+
+        return {
+          success: true,
+          configured,
+          activeModel,
+          models: cachedModels,
+        };
+      } catch (err) {
+        console.error('[AIHandler IPC] ai:selectProvider error:', err.message);
+        return { success: false, error: err.message };
+      }
+    });
+
+    // 3. ai:saveApiKey(provider, key) -> { success, error?: string }
+    ipcMain.handle('ai:saveApiKey', async (_event, providerIdOrKey, maybeKey) => {
+      try {
+        let providerId = providerIdOrKey;
+        let key = maybeKey;
+
+        // Backward compatibility: if single argument passed, assume active provider
+        if (maybeKey === undefined) {
+          key = providerIdOrKey;
+          providerId = this.registry.getActiveProviderId();
+        }
+
+        console.log(`[AIHandler IPC] Key saved for provider: "${providerId}"`);
+        const result = this.registry.saveApiKey(providerId, key);
+        return result;
       } catch (err) {
         console.error('[AIHandler IPC] ai:saveApiKey error:', err.message);
         return { success: false, error: err.message };
       }
     });
 
-    // 3. ai:testConnection -> { success: boolean, models: string[], error?: string }
-    ipcMain.handle('ai:testConnection', async () => {
+    // 4. ai:testConnection(provider) -> { success, models[], error } (returns LIVE models)
+    ipcMain.handle('ai:testConnection', async (_event, maybeProviderId) => {
       try {
-        console.log('[AIHandler IPC] ai:testConnection started');
-        const apiKey = this.provider.getApiKey();
-        if (!apiKey) {
-          console.log('[AIHandler IPC] ai:testConnection: No API key set');
+        const providerId = maybeProviderId || this.registry.getActiveProviderId();
+        console.log(`[AIHandler IPC] Testing connection for provider "${providerId}"...`);
+
+        const provider = this.registry.getProvider(providerId);
+        if (!provider || !provider.getApiKey()) {
           return {
             success: false,
-            error: 'Please add your Google AI Studio API key first',
+            error: `Please enter and save your ${provider ? provider.name : 'AI'} API key first.`,
             models: [],
           };
         }
 
-        const res = await this.provider.testConnection();
-        console.log(
-          '[AIHandler IPC] ai:testConnection completed:',
-          res.success ? `Success (${res.models ? res.models.length : 0} models)` : `Failed: ${res.error}`
-        );
-
-        if (res && res.success && Array.isArray(res.models)) {
-          res.models.forEach((modelId) => {
-            this.registry.registerModel(modelId);
-          });
-        }
-        return res || { success: false, error: 'Empty test connection response', models: [] };
+        // Live API call: validates key AND fetches fresh live models
+        const result = await this.modelService.fetchModels(providerId);
+        console.log(`[AIHandler IPC] Connection test for "${providerId}":`, result.success ? `Success (${result.models.length} models fetched)` : `Failed: ${result.error}`);
+        return result;
       } catch (err) {
-        console.error('[AIHandler IPC] ai:testConnection unexpected error:', err.message);
+        console.error('[AIHandler IPC] ai:testConnection error:', err.message);
         return { success: false, error: err.message, models: [] };
       }
     });
 
-    // 4. ai:generate -> { success: boolean, data?: object, error?: string }
-    ipcMain.handle('ai:generate', async (_event, params = {}) => {
+    // 5. ai:refreshModels(provider) -> { success, models[], error }
+    ipcMain.handle('ai:refreshModels', async (_event, maybeProviderId) => {
       try {
-        console.log('[AIHandler IPC] ai:generate invoked with profile:', params?.taskProfile || 'cheap');
-        const apiKey = this.provider.getApiKey();
-        if (!apiKey) {
-          return {
-            success: false,
-            error: 'Please add your Google AI Studio API key first',
-          };
-        }
-
-        const taskProfile = params?.taskProfile || 'cheap';
-        const resolvedModel = params?.model || this.registry.getModelForProfile(taskProfile);
-
-        const res = await this.queue.enqueue(
-          (signal) =>
-            this.provider.generate({
-              ...params,
-              model: resolvedModel,
-              signal,
-            }),
-          {
-            model: resolvedModel,
-            profile: taskProfile,
-          }
-        );
-        console.log('[AIHandler IPC] ai:generate execution finished:', res?.success ? 'Success' : `Error: ${res?.error}`);
-        return res || { success: false, error: 'No response returned from model execution' };
+        const providerId = maybeProviderId || this.registry.getActiveProviderId();
+        console.log(`[AIHandler IPC] Force refreshing models for provider "${providerId}"...`);
+        const result = await this.modelService.fetchModels(providerId);
+        return result;
       } catch (err) {
-        console.error('[AIHandler IPC] ai:generate unexpected error:', err.message);
+        console.error('[AIHandler IPC] ai:refreshModels error:', err.message);
+        return { success: false, error: err.message, models: [] };
+      }
+    });
+
+    // 6. ai:selectModel(provider, modelId) -> { success, features, tier, warning, note }
+    ipcMain.handle('ai:selectModel', async (_event, providerId, modelId) => {
+      try {
+        const pId = providerId || this.registry.getActiveProviderId();
+        console.log(`[AIHandler IPC] Model selected: "${modelId}" on provider "${pId}"`);
+        const success = this.registry.setActiveModel(pId, modelId);
+
+        const pricing = getModelPricing(pId, modelId);
+        const cachedModels = this.modelService.getCachedModels(pId);
+        const modelMeta = cachedModels.find((m) => m.id === modelId);
+
+        return {
+          success,
+          features: modelMeta ? modelMeta.supportedFeatures : { chat: true, vision: false, structuredOutput: false },
+          tier: pricing.tier,
+          note: pricing.note,
+          warning: pricing.warning,
+        };
+      } catch (err) {
+        console.error('[AIHandler IPC] ai:selectModel error:', err.message);
         return { success: false, error: err.message };
       }
     });
 
-    // 5. ai:getUsageStats -> { requestsToday: number, tokensToday: number, error?: string }
+    // 7. ai:generate(params) -> Uses active provider + active model EXACTLY
+    ipcMain.handle('ai:generate', async (_event, params = {}) => {
+      try {
+        const activeProviderId = (params.provider || this.registry.getActiveProviderId()).toLowerCase();
+        const provider = this.registry.getProvider(activeProviderId);
+
+        if (!provider) {
+          return { success: false, error: `Invalid active provider: "${activeProviderId}"` };
+        }
+
+        if (!provider.getApiKey()) {
+          return {
+            success: false,
+            error: `Please enter and save your ${provider.name} API key first.`,
+          };
+        }
+
+        // Determine exact model ID
+        let exactModel = params.model || this.registry.getActiveModel(activeProviderId);
+
+        if (!exactModel) {
+          // If no active model is selected yet, inspect cached models
+          const cached = this.modelService.getCachedModels(activeProviderId);
+          if (cached && cached.length > 0) {
+            exactModel = cached[0].id;
+            this.registry.setActiveModel(activeProviderId, exactModel);
+          } else {
+            return {
+              success: false,
+              error: 'No model selected. Please select a model from the dropdown or click "Test Connection" to discover live models.',
+            };
+          }
+        }
+
+        console.log(`[AIHandler IPC] Request sent to provider "${activeProviderId}" with exact model: "${exactModel}"`);
+
+        const res = await this.queue.enqueue(
+          (signal) =>
+            provider.generate({
+              ...params,
+              model: exactModel,
+              signal,
+            }),
+          {
+            model: exactModel,
+            provider: activeProviderId,
+          }
+        );
+
+        console.log(
+          `[AIHandler IPC] Model request completed for "${exactModel}":`,
+          res?.success ? 'Success' : `Error (${res?.status}): ${res?.error}`
+        );
+
+        return res || { success: false, error: 'Empty response returned from model execution.' };
+      } catch (err) {
+        console.error('[AIHandler IPC] ai:generate error:', err.message);
+        return { success: false, error: err.message };
+      }
+    });
+
+    // 8. ai:getActiveConfig -> { provider, model, tier, features, configured, warning, note }
+    ipcMain.handle('ai:getActiveConfig', async () => {
+      try {
+        const activeProviderId = this.registry.getActiveProviderId();
+        const provider = this.registry.getActiveProvider();
+        const apiKey = provider ? provider.getApiKey() : '';
+        const configured = Boolean(apiKey && apiKey.trim().length > 3);
+        const activeModel = this.registry.getActiveModel(activeProviderId);
+
+        const pricing = activeModel ? getModelPricing(activeProviderId, activeModel) : { tier: 'unknown', warning: null, note: '' };
+        const cachedModels = this.modelService.getCachedModels(activeProviderId);
+        const modelMeta = cachedModels.find((m) => m.id === activeModel);
+
+        return {
+          provider: activeProviderId,
+          providerName: provider ? provider.name : activeProviderId,
+          model: activeModel,
+          tier: pricing.tier,
+          note: pricing.note,
+          warning: pricing.warning,
+          features: modelMeta ? modelMeta.supportedFeatures : null,
+          configured,
+          modelsCount: cachedModels.length,
+        };
+      } catch (err) {
+        console.error('[AIHandler IPC] ai:getActiveConfig error:', err.message);
+        return { provider: 'google', configured: false, error: err.message };
+      }
+    });
+
+    // 9. ai:getUsageStats -> { requestsToday, tokensToday }
     ipcMain.handle('ai:getUsageStats', async () => {
       try {
         const stats = await this.queue.getTodayUsage();
@@ -274,36 +344,18 @@ class AIHandler {
       }
     });
 
-    // 6. ai:getProfiles -> { profiles: Array, availableModels: Array, error?: string }
-    ipcMain.handle('ai:getProfiles', async () => {
+    // 10. Backward compatibility for ai:getStatus
+    ipcMain.handle('ai:getStatus', async () => {
       try {
-        return {
-          profiles: this.registry.getProfiles() || [],
-          availableModels: this.registry.getAvailableModels() || [],
-        };
+        const provider = this.registry.getActiveProvider();
+        const key = provider ? provider.getApiKey() : '';
+        return { configured: Boolean(key && key.trim().length > 3) };
       } catch (err) {
-        console.error('[AIHandler IPC] ai:getProfiles error:', err.message);
-        return { profiles: [], availableModels: [], error: err.message };
+        return { configured: false, error: err.message };
       }
     });
 
-    // 7. ai:setProfile -> { success: boolean, error?: string }
-    ipcMain.handle('ai:setProfile', async (_event, payload = {}) => {
-      try {
-        const { profile, model } = payload || {};
-        if (!profile || !model) {
-          return { success: false, error: 'Profile and model are required.' };
-        }
-        const success = this.registry.setProfile(profile, model);
-        console.log(`[AIHandler IPC] ai:setProfile (${profile} -> ${model}) result:`, success);
-        return { success };
-      } catch (err) {
-        console.error('[AIHandler IPC] ai:setProfile error:', err.message);
-        return { success: false, error: err.message };
-      }
-    });
-
-    console.log('[AIHandler] All AI IPC handlers registered successfully.');
+    console.log('[AIHandler] All Multi-Provider AI IPC channels registered successfully.');
   }
 }
 
@@ -311,8 +363,7 @@ class AIHandler {
 const aiHandler = new AIHandler();
 
 /**
- * Explicit helper function to register handlers and initialize subsystem
- * with the established SQLite database.
+ * Explicit initialization helper
  * @param {object} [db]
  */
 function registerAiHandlers(db) {

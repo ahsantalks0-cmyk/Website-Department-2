@@ -13,7 +13,15 @@
 
 const path = require('path');
 const fs = require('fs');
-const { app } = require('electron');
+let app = null;
+if (process.versions && process.versions.electron) {
+  try {
+    const electron = require('electron');
+    app = electron?.app || null;
+  } catch (e) {
+    // Fallback
+  }
+}
 const { migrations } = require('./migrations');
 
 let dbInstance = null;

@@ -68,7 +68,8 @@ class RequestQueue {
         executionFn,
         metadata: {
           model: metadata.model || 'unknown',
-          profile: metadata.profile || 'cheap',
+          provider: metadata.provider || 'unknown',
+          profile: metadata.profile || metadata.provider || 'active',
         },
         resolve,
         attempt: 0,
@@ -191,9 +192,9 @@ class RequestQueue {
     }
 
     // Extract token metrics if present
-    const usage = result?.data?.usageMetadata || {};
-    const promptTokens = usage.promptTokens || 0;
-    const outputTokens = usage.outputTokens || 0;
+    const usage = result?.data?.usage || result?.data?.usageMetadata || {};
+    const promptTokens = usage.promptTokens || usage.prompt_tokens || 0;
+    const outputTokens = usage.outputTokens || usage.output_tokens || usage.completion_tokens || 0;
 
     // Audit log to SQLite
     this.logUsage({
@@ -206,10 +207,11 @@ class RequestQueue {
       errorMessage: result.success ? null : result.error || 'Unknown error',
     });
 
-    // Attach latency to data for UI test panel
+    // Attach latency and exact verified model to data for UI test panel
     if (result && result.data) {
       result.data.latencyMs = latencyMs;
-      result.data.modelUsed = metadata.model;
+      result.data.modelUsed = result.data.model || metadata.model;
+      result.data.providerUsed = metadata.provider;
     }
 
     resolve(result);

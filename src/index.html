@@ -372,87 +372,136 @@
               </div>
             </div>
 
-            <!-- SECTION 3: AI PROVIDER -->
+            <!-- SECTION 3: AI PROVIDER & LIVE MODELS -->
             <div class="settings-section" id="section-ai-provider">
-              <h2 class="settings-section-title">AI Provider</h2>
-              <p class="settings-section-desc">Configure Google Gemini credentials, route task profiles, and monitor token consumption.</p>
+              <h2 class="settings-section-title">AI Provider & Live Models</h2>
+              <p class="settings-section-desc">Select your AI provider, securely configure credentials, discover live models, and test generation in real-time.</p>
 
-              <!-- Card 1: API Key & Connectivity -->
+              <!-- Card 1: Provider & Credentials -->
               <div class="ai-provider-card" id="ai-key-card">
                 <div class="ai-card-title">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                   </svg>
-                  <span>Google AI Studio API Key</span>
+                  <span>Provider & Credentials</span>
                 </div>
                 <p class="ai-card-desc">
-                  Stored securely using encrypted native safeStorage. Gemini calls execute exclusively inside the Electron Main Process.
+                  Choose your AI provider. API keys are encrypted locally using native safeStorage and executed strictly inside the Electron Main Process.
                 </p>
 
-                <div class="ai-key-input-row">
-                  <div class="ai-key-input-wrapper">
-                    <input type="password" id="ai-api-key-input" class="form-input" placeholder="Enter your Gemini API key..." autocomplete="off" spellcheck="false" />
-                    <button type="button" class="ai-key-toggle-btn" id="btn-toggle-key-visibility" title="Toggle visibility">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="key-visibility-icon">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </button>
+                <!-- Provider Selection Row -->
+                <div class="ai-provider-select-row">
+                  <div class="ai-form-group">
+                    <label for="ai-provider-select" class="form-label">AI Engine / Provider</label>
+                    <div class="ai-select-with-badge">
+                      <select id="ai-provider-select" class="form-select ai-provider-dropdown">
+                        <option value="google">Google (Gemini)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="groq">Groq (Fast Inference)</option>
+                      </select>
+                      <span class="ai-status-badge configured" id="ai-provider-badge">Google active</span>
+                    </div>
                   </div>
+                </div>
 
-                  <button class="btn btn-primary" id="btn-save-ai-key">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                      <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                      <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    Save Key
-                  </button>
+                <!-- API Key Input Row -->
+                <div class="ai-key-section-wrapper">
+                  <label for="ai-api-key-input" class="form-label" id="ai-key-label">Google AI Studio API Key</label>
+                  <div class="ai-key-input-row">
+                    <div class="ai-key-input-wrapper">
+                      <input type="password" id="ai-api-key-input" class="form-input" placeholder="Enter your Gemini API key..." autocomplete="off" spellcheck="false" />
+                      <button type="button" class="ai-key-toggle-btn" id="btn-toggle-key-visibility" title="Toggle visibility">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="key-visibility-icon">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    </div>
 
-                  <button class="btn btn-secondary" id="btn-test-ai-connection">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Test Connection
-                  </button>
+                    <button class="btn btn-primary" id="btn-save-ai-key">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                      </svg>
+                      Save Key
+                    </button>
 
-                  <div class="ai-status-badge missing" id="ai-key-status-badge">
-                    <span>Checking...</span>
+                    <button class="btn btn-secondary" id="btn-test-ai-connection">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                      Test Connection
+                    </button>
+
+                    <div class="ai-status-badge missing" id="ai-key-status-badge">
+                      <span>Checking...</span>
+                    </div>
                   </div>
                 </div>
 
                 <div class="ai-connection-feedback" id="ai-connection-feedback"></div>
               </div>
 
-              <!-- Card 2: Task Profiles Routing -->
-              <div class="ai-provider-card" id="ai-profiles-card">
+              <!-- Card 2: Live Model Selection -->
+              <div class="ai-provider-card" id="ai-model-selection-card">
                 <div class="ai-card-title">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                    <polyline points="2 17 12 22 22 17"></polyline>
-                    <polyline points="2 12 17 22 12"></polyline>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
                   </svg>
-                  <span>Task Profile Routing</span>
+                  <span>Live Model Discovery</span>
                 </div>
                 <p class="ai-card-desc">
-                  Future design agents route work to optimal models by task profile rather than hardcoded identifiers.
+                  Models are discovered live directly from the provider API. No hardcoded or expired identifiers.
                 </p>
 
-                <div class="ai-profile-table-wrapper">
-                  <table class="ai-profile-table">
-                    <thead>
-                      <tr>
-                        <th style="width: 140px;">Profile</th>
-                        <th>Purpose & Description</th>
-                        <th style="width: 240px;">Assigned Model</th>
-                      </tr>
-                    </thead>
-                    <tbody id="ai-profiles-table-body">
-                      <!-- Populated dynamically by settings-ai.js -->
-                    </tbody>
-                  </table>
+                <div class="ai-model-controls-row">
+                  <div class="ai-model-select-wrapper">
+                    <label for="ai-model-select" class="form-label">Active Model</label>
+                    <div class="ai-model-select-inner">
+                      <select id="ai-model-select" class="form-select ai-model-dropdown">
+                        <option value="">No models loaded — click Test Connection or Refresh</option>
+                      </select>
+                      <div class="ai-spinner" id="ai-model-spinner" style="display: none;"></div>
+                    </div>
+                  </div>
+
+                  <button class="btn btn-secondary" id="btn-refresh-models">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <polyline points="1 20 1 14 7 14"></polyline>
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    Refresh Models
+                  </button>
+                </div>
+
+                <!-- Model Metadata: Capabilities & Pricing Tier Notice -->
+                <div class="ai-model-details-panel" id="ai-model-details-panel" style="display: none;">
+                  <div class="ai-model-meta-row">
+                    <span class="ai-meta-heading">Capabilities:</span>
+                    <div class="ai-feature-chips" id="ai-feature-chips">
+                      <span class="ai-chip chip-feature" id="chip-feat-chat">Chat</span>
+                      <span class="ai-chip chip-feature" id="chip-feat-vision">Vision</span>
+                      <span class="ai-chip chip-feature" id="chip-feat-json">Structured Output</span>
+                    </div>
+                  </div>
+
+                  <!-- Paid Model Warning Banner -->
+                  <div class="ai-pricing-warning-banner" id="ai-pricing-warning-banner" style="display: none;">
+                    <div class="ai-warning-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                    </div>
+                    <div class="ai-warning-text" id="ai-pricing-warning-text"></div>
+                  </div>
                 </div>
               </div>
 
@@ -463,10 +512,10 @@
                     <circle cx="12" cy="12" r="10"></circle>
                     <polygon points="10 8 16 12 10 16 10 8"></polygon>
                   </svg>
-                  <span>Interactive Test & Usage Monitoring</span>
+                  <span>Interactive Test & Telemetry</span>
                 </div>
                 <p class="ai-card-desc">
-                  Verify queue processing, free-tier throttling, token counters, and roundtrip latency in real-time.
+                  Verify end-to-end generation, queue concurrency, and token counters with your selected model.
                 </p>
 
                 <!-- Usage Stats -->
@@ -483,10 +532,12 @@
 
                 <!-- Test Interactive Box -->
                 <div class="ai-test-container">
-                  <textarea id="ai-test-prompt-input" class="ai-test-textarea" placeholder="Enter a prompt to test generation (e.g. Generate 3 concise design principles for an Apple-inspired dashboard)...">Generate 3 concise design principles for a modern desktop application.</textarea>
+                  <textarea id="ai-test-prompt-input" class="ai-test-textarea" placeholder="Enter a prompt to test generation...">Generate 3 concise design principles for a modern desktop application.</textarea>
                   
                   <div class="ai-test-actions-bar">
-                    <span style="font-size: 12px; color: var(--text-muted);">Uses default "cheap" task profile with queue rate limiting</span>
+                    <span class="ai-active-route-notice" id="ai-active-route-notice">
+                      Routing to Google &bull; Model: gemini-2.5-flash-lite
+                    </span>
                     <button class="btn btn-primary" id="btn-send-ai-test">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -501,6 +552,7 @@
                     <div class="ai-test-result-header">
                       <strong style="font-size: 13px; color: var(--text-primary);">Response Received</strong>
                       <div class="ai-test-metrics-chips">
+                        <span class="ai-test-metric-chip" id="ai-test-metric-provider">Provider: -</span>
                         <span class="ai-test-metric-chip" id="ai-test-metric-model">Model: -</span>
                         <span class="ai-test-metric-chip" id="ai-test-metric-tokens">Tokens: -</span>
                         <span class="ai-test-metric-chip" id="ai-test-metric-latency">Latency: -</span>
