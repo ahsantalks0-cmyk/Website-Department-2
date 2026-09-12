@@ -151,6 +151,57 @@ const apiBridge = {
   'updater:check': () => ipcRenderer.invoke('check-for-updates'),
   'updater:download': () => ipcRenderer.invoke('download-update'),
   'updater:install': () => ipcRenderer.invoke('install-update'),
+
+  /**
+   * Phase 3: AI Provider IPC Bridge
+   */
+  ai: {
+    /**
+     * Checks if an API key is stored and configured.
+     * @returns {Promise<{configured: boolean}>}
+     */
+    getStatus: () => ipcRenderer.invoke('ai:getStatus'),
+
+    /**
+     * Saves and encrypts API key in SQLite settings.
+     * @param {string} key
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    saveApiKey: (key) => ipcRenderer.invoke('ai:saveApiKey', key),
+
+    /**
+     * Tests connectivity to Gemini API and fetches available models.
+     * @returns {Promise<{success: boolean, models: string[], error?: string}>}
+     */
+    testConnection: () => ipcRenderer.invoke('ai:testConnection'),
+
+    /**
+     * Executes generation through request queue and rate limiter.
+     * @param {{contents: any, taskProfile?: string, model?: string, schema?: object, tools?: Array, images?: Array, systemInstruction?: string, options?: object}} params
+     * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+     */
+    generate: (params) => ipcRenderer.invoke('ai:generate', params),
+
+    /**
+     * Fetches today's request count and tokens used.
+     * @returns {Promise<{requestsToday: number, tokensToday: number}>}
+     */
+    getUsageStats: () => ipcRenderer.invoke('ai:getUsageStats'),
+
+    /**
+     * Returns task profile bindings and available model choices.
+     * @returns {Promise<{profiles: Array<{profile: string, model: string, description: string}>, availableModels: Array}>}
+     */
+    getProfiles: () => ipcRenderer.invoke('ai:getProfiles'),
+
+    /**
+     * Rebinds a task profile to a specific model identifier.
+     * @param {string} profile
+     * @param {string} model
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    setProfile: (profile, model) => ipcRenderer.invoke('ai:setProfile', { profile, model }),
+  },
 };
 
 // Expose on both `window.api` and `window.electronAPI` for developer ergonomics and backward compatibility

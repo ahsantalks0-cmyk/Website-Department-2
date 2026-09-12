@@ -373,6 +373,147 @@
                 </div>
               </div>
             </div>
+
+            <!-- SECTION 3: AI PROVIDER -->
+            <div class="settings-section" id="section-ai-provider">
+              <h2 class="settings-section-title">AI Provider</h2>
+              <p class="settings-section-desc">Configure Google Gemini credentials, route task profiles, and monitor token consumption.</p>
+
+              <!-- Card 1: API Key & Connectivity -->
+              <div class="ai-provider-card" id="ai-key-card">
+                <div class="ai-card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  <span>Google AI Studio API Key</span>
+                </div>
+                <p class="ai-card-desc">
+                  Stored securely using encrypted native safeStorage. Gemini calls execute exclusively inside the Electron Main Process.
+                </p>
+
+                <div class="ai-key-input-row">
+                  <div class="ai-key-input-wrapper">
+                    <input type="password" id="ai-api-key-input" class="form-input" placeholder="Enter your Gemini API key..." autocomplete="off" spellcheck="false" />
+                    <button type="button" class="ai-key-toggle-btn" id="btn-toggle-key-visibility" title="Toggle visibility">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="key-visibility-icon">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <button class="btn btn-primary" id="btn-save-ai-key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                      <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                      <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Save Key
+                  </button>
+
+                  <button class="btn btn-secondary" id="btn-test-ai-connection">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Test Connection
+                  </button>
+
+                  <div class="ai-status-badge missing" id="ai-key-status-badge">
+                    <span>Checking...</span>
+                  </div>
+                </div>
+
+                <div class="ai-connection-feedback" id="ai-connection-feedback"></div>
+              </div>
+
+              <!-- Card 2: Task Profiles Routing -->
+              <div class="ai-provider-card" id="ai-profiles-card">
+                <div class="ai-card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                  </svg>
+                  <span>Task Profile Routing</span>
+                </div>
+                <p class="ai-card-desc">
+                  Future design agents route work to optimal models by task profile rather than hardcoded identifiers.
+                </p>
+
+                <div class="ai-profile-table-wrapper">
+                  <table class="ai-profile-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 140px;">Profile</th>
+                        <th>Purpose & Description</th>
+                        <th style="width: 240px;">Assigned Model</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ai-profiles-table-body">
+                      <!-- Populated dynamically by settings-ai.js -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Card 3: Interactive Test Panel & Usage Stats -->
+              <div class="ai-provider-card" id="ai-test-panel-card">
+                <div class="ai-card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                  </svg>
+                  <span>Interactive Test & Usage Monitoring</span>
+                </div>
+                <p class="ai-card-desc">
+                  Verify queue processing, free-tier throttling, token counters, and roundtrip latency in real-time.
+                </p>
+
+                <!-- Usage Stats -->
+                <div class="ai-usage-grid">
+                  <div class="ai-usage-stat-card">
+                    <span class="ai-usage-stat-label">Requests Today</span>
+                    <span class="ai-usage-stat-val" id="ai-stat-requests-today">0</span>
+                  </div>
+                  <div class="ai-usage-stat-card">
+                    <span class="ai-usage-stat-label">Tokens Today</span>
+                    <span class="ai-usage-stat-val" id="ai-stat-tokens-today">0</span>
+                  </div>
+                </div>
+
+                <!-- Test Interactive Box -->
+                <div class="ai-test-container">
+                  <textarea id="ai-test-prompt-input" class="ai-test-textarea" placeholder="Enter a prompt to test generation (e.g. Generate 3 concise design principles for an Apple-inspired dashboard)...">Generate 3 concise design principles for a modern desktop application.</textarea>
+                  
+                  <div class="ai-test-actions-bar">
+                    <span style="font-size: 12px; color: var(--text-muted);">Uses default "cheap" task profile with queue rate limiting</span>
+                    <button class="btn btn-primary" id="btn-send-ai-test">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                      Send Test Prompt
+                    </button>
+                  </div>
+
+                  <!-- Test Result -->
+                  <div class="ai-test-result-box" id="ai-test-result-box">
+                    <div class="ai-test-result-header">
+                      <strong style="font-size: 13px; color: var(--text-primary);">Response Received</strong>
+                      <div class="ai-test-metrics-chips">
+                        <span class="ai-test-metric-chip" id="ai-test-metric-model">Model: -</span>
+                        <span class="ai-test-metric-chip" id="ai-test-metric-tokens">Tokens: -</span>
+                        <span class="ai-test-metric-chip" id="ai-test-metric-latency">Latency: -</span>
+                      </div>
+                    </div>
+                    <div class="ai-test-output-content" id="ai-test-output-content"></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
         </section>
       </div>

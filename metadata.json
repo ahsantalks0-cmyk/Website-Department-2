@@ -1,6 +1,6 @@
 {
   "name": "AI Design Department",
-  "description": "Desktop application foundation for AI Design Department with Apple-style UI, local SQLite database layer with WAL mode and migrations, auto-updater, and GitHub Actions CI/CD pipeline.",
+  "description": "Desktop application foundation for AI Design Department with Apple-style UI, local SQLite database layer, Phase 3 Gemini Model Adapter with encrypted safeStorage key management, FIFO request queue, and task profile routing.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -99,6 +99,31 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 2,
+    name: '002_ai_usage_table',
+    up: (db) => {
+      // 8. AI Usage tracking (Phase 3 Model Adapter & Rate Limiting logs)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ai_usage (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          timestamp TEXT DEFAULT (datetime('now')),
+          model TEXT NOT NULL,
+          task_profile TEXT NOT NULL,
+          prompt_tokens INTEGER DEFAULT 0,
+          output_tokens INTEGER DEFAULT 0,
+          latency_ms INTEGER DEFAULT 0,
+          status TEXT NOT NULL,
+          error_message TEXT
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_ai_usage_timestamp ON ai_usage(timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_ai_usage_profile ON ai_usage(task_profile);
+      `);
+    },
+  },
 ];
 
 module.exports = {

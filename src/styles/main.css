@@ -1502,3 +1502,319 @@ html, body {
   border-radius: var(--pill-radius);
 }
 
+/* -------------------------------------------------------------------------- */
+/* PHASE 3: AI PROVIDER SETTINGS & TEST PANEL                                 */
+/* -------------------------------------------------------------------------- */
+
+.ai-provider-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.ai-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.ai-key-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ai-key-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
+}
+
+.ai-key-input-wrapper input {
+  width: 100%;
+  padding-right: 40px;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+.ai-key-toggle-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.ai-key-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.ai-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--pill-radius);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ai-status-badge.saved {
+  background-color: var(--success-subtle);
+  color: var(--success-color);
+  border: 1px solid rgba(52, 199, 89, 0.25);
+}
+
+.ai-status-badge.missing {
+  background-color: var(--error-subtle);
+  color: var(--error-color);
+  border: 1px solid rgba(255, 59, 48, 0.25);
+}
+
+.ai-status-badge.testing {
+  background-color: var(--accent-subtle);
+  color: var(--accent-color);
+  border: 1px solid rgba(0, 113, 227, 0.25);
+}
+
+.ai-connection-feedback {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--btn-radius);
+  font-size: 13px;
+  display: none;
+  line-height: 1.5;
+}
+
+.ai-connection-feedback.success {
+  background-color: var(--success-subtle);
+  border: 1px solid rgba(52, 199, 89, 0.25);
+  color: var(--success-color);
+  display: block;
+}
+
+.ai-connection-feedback.error {
+  background-color: var(--error-subtle);
+  border: 1px solid rgba(255, 59, 48, 0.25);
+  color: var(--error-color);
+  display: block;
+}
+
+.ai-model-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ai-model-chip {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+/* Task Profiles Table */
+.ai-profile-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--border-subtle);
+}
+
+.ai-profile-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.ai-profile-table th {
+  background-color: var(--surface-color);
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ai-profile-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.ai-profile-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ai-profile-name-badge {
+  display: inline-block;
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 12px;
+  background-color: var(--accent-subtle);
+  color: var(--accent-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ai-profile-select {
+  padding: 6px 10px;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--surface-color);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+
+.ai-profile-select:focus {
+  border-color: var(--accent-color);
+}
+
+/* Usage Stats Row */
+.ai-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-usage-stat-card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-usage-stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-usage-stat-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+/* Test Prompt Interactive Panel */
+.ai-test-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-test-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--surface-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  line-height: 1.5;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ai-test-textarea:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.ai-test-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ai-test-result-box {
+  margin-top: 14px;
+  padding: 16px;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  display: none;
+}
+
+.ai-test-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-test-metrics-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-test-metric-chip {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--card-bg);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.ai-test-output-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+

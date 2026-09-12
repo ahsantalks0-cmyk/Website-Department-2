@@ -211,9 +211,91 @@
     },
   };
 
+  const STORAGE_KEY_AI_KEY = 'aidepartment_mock_ai_key';
+  const STORAGE_KEY_AI_PROFILES = 'aidepartment_mock_ai_profiles';
+  const STORAGE_KEY_AI_USAGE = 'aidepartment_mock_ai_usage';
+
+  const mockAiApi = {
+    async getStatus() {
+      const key = localStorage.getItem(STORAGE_KEY_AI_KEY) || '';
+      return { configured: key.length > 5 };
+    },
+    async saveApiKey(key) {
+      if (!key) return { success: false, error: 'Key required' };
+      localStorage.setItem(STORAGE_KEY_AI_KEY, key.trim());
+      return { success: true };
+    },
+    async testConnection() {
+      const key = localStorage.getItem(STORAGE_KEY_AI_KEY) || '';
+      if (!key) {
+        return { success: false, error: 'Please add your Google AI Studio API key first', models: [] };
+      }
+      return {
+        success: true,
+        models: [
+          'gemini-2.5-flash-lite',
+          'gemini-2.5-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro'
+        ]
+      };
+    },
+    async generate(params) {
+      const key = localStorage.getItem(STORAGE_KEY_AI_KEY) || '';
+      if (!key) {
+        return { success: false, error: 'Please add your Google AI Studio API key first' };
+      }
+
+      // Record simulated usage in localStorage
+      const usage = getStored(STORAGE_KEY_AI_USAGE, { requestsToday: 0, tokensToday: 0 });
+      usage.requestsToday += 1;
+      usage.tokensToday += 268;
+      setStored(STORAGE_KEY_AI_USAGE, usage);
+
+      return {
+        success: true,
+        data: {
+          text: `1. Clarity Over Decoration: Prioritize essential desktop actions with high typographic contrast and generous negative space.\n2. Direct Manipulation: Ensure interface states provide instant tactile feedback and clear spatial continuity.\n3. Adaptive Hierarchy: Group related tools into cohesive clusters, surfacing secondary controls on demand.`,
+          modelUsed: params?.taskProfile === 'reasoning' ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite',
+          latencyMs: 342,
+          usageMetadata: { promptTokens: 48, outputTokens: 220, totalTokens: 268 },
+        }
+      };
+    },
+    async getUsageStats() {
+      return getStored(STORAGE_KEY_AI_USAGE, { requestsToday: 0, tokensToday: 0 });
+    },
+    async getProfiles() {
+      const defaults = [
+        { profile: 'cheap', model: 'gemini-2.5-flash-lite', description: 'Simple content drafts, micro-copy, taglines, and repetitive formatting.' },
+        { profile: 'reasoning', model: 'gemini-2.5-flash', description: 'Complex design architectures, component logic, CSS layouts, and heuristics.' },
+        { profile: 'vision', model: 'gemini-2.5-flash', description: 'Visual hierarchy inspection, screenshot analysis, and reference design critique.' },
+        { profile: 'structured', model: 'gemini-2.5-flash-lite', description: 'Strict JSON schemas, token generation, and structured design seeds.' },
+      ];
+      const saved = getStored(STORAGE_KEY_AI_PROFILES, null);
+      return {
+        profiles: saved || defaults,
+        availableModels: [
+          { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+          { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+        ]
+      };
+    },
+    async setProfile(profile, model) {
+      const profiles = (await mockAiApi.getProfiles()).profiles;
+      const target = profiles.find(p => p.profile === profile);
+      if (target) {
+        target.model = model;
+        setStored(STORAGE_KEY_AI_PROFILES, profiles);
+      }
+      return { success: true };
+    }
+  };
+
   const shim = {
     getAppVersion: async () => '1.0.4',
     db: mockDbApi,
+    ai: mockAiApi,
     updater: null,
   };
 
@@ -285,6 +367,9 @@
       window.DashboardController.refresh();
     } else if (tabKey === 'projects' && window.ProjectsController) {
       window.ProjectsController.load();
+    } else if (tabKey === 'settings' && window.SettingsAIController) {
+      window.SettingsAIController.refreshStatus();
+      window.SettingsAIController.loadUsageStats();
     }
   }
 

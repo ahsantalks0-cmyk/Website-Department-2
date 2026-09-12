@@ -14,6 +14,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getDb, runMigrations, closeDb } = require('./db/database');
+const { aiHandler } = require('./ai/ai-handler');
 
 // Keep global reference of the window object to prevent garbage collection
 let mainWindow = null;
@@ -45,6 +46,8 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     console.log('[App] Initializing Phase 2 database migrations...');
     runMigrations();
+    console.log('[App] Initializing Phase 3 AI subsystem...');
+    aiHandler.initialize();
 
     createWindow();
 
