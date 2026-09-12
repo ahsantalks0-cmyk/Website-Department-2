@@ -151,59 +151,91 @@ const apiBridge = {
   'updater:check': () => ipcRenderer.invoke('check-for-updates'),
   'updater:download': () => ipcRenderer.invoke('download-update'),
   'updater:install': () => ipcRenderer.invoke('install-update'),
+};
+
+/**
+ * Phase 3: AI Provider IPC Bridge
+ * Exposes methods matching the exact specifications:
+ * getStatus, saveApiKey, testConnection, generate, getUsageStats, getProfiles, setProfile
+ */
+const aiBridge = {
+  /**
+   * Checks if an API key is stored and configured.
+   * @returns {Promise<{configured: boolean}>}
+   */
+  getStatus: () => {
+    console.log('[Preload] Invoking ai:getStatus');
+    return ipcRenderer.invoke('ai:getStatus');
+  },
 
   /**
-   * Phase 3: AI Provider IPC Bridge
+   * Saves and encrypts API key in SQLite settings.
+   * @param {string} key
+   * @returns {Promise<{success: boolean, error?: string}>}
    */
-  ai: {
-    /**
-     * Checks if an API key is stored and configured.
-     * @returns {Promise<{configured: boolean}>}
-     */
-    getStatus: () => ipcRenderer.invoke('ai:getStatus'),
+  saveApiKey: (key) => {
+    console.log('[Preload] Invoking ai:saveApiKey');
+    return ipcRenderer.invoke('ai:saveApiKey', key);
+  },
 
-    /**
-     * Saves and encrypts API key in SQLite settings.
-     * @param {string} key
-     * @returns {Promise<{success: boolean, error?: string}>}
-     */
-    saveApiKey: (key) => ipcRenderer.invoke('ai:saveApiKey', key),
+  /**
+   * Tests connectivity to Gemini API and fetches available models.
+   * @returns {Promise<{success: boolean, models: string[], error?: string}>}
+   */
+  testConnection: () => {
+    console.log('[Preload] Invoking ai:testConnection');
+    return ipcRenderer.invoke('ai:testConnection');
+  },
 
-    /**
-     * Tests connectivity to Gemini API and fetches available models.
-     * @returns {Promise<{success: boolean, models: string[], error?: string}>}
-     */
-    testConnection: () => ipcRenderer.invoke('ai:testConnection'),
+  /**
+   * Executes generation through request queue and rate limiter.
+   * @param {{contents: any, taskProfile?: string, model?: string, schema?: object, tools?: Array, images?: Array, systemInstruction?: string, options?: object}} params
+   * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+   */
+  generate: (params) => {
+    console.log('[Preload] Invoking ai:generate');
+    return ipcRenderer.invoke('ai:generate', params);
+  },
 
-    /**
-     * Executes generation through request queue and rate limiter.
-     * @param {{contents: any, taskProfile?: string, model?: string, schema?: object, tools?: Array, images?: Array, systemInstruction?: string, options?: object}} params
-     * @returns {Promise<{success: boolean, data?: object, error?: string}>}
-     */
-    generate: (params) => ipcRenderer.invoke('ai:generate', params),
+  /**
+   * Fetches today's request count and tokens used.
+   * @returns {Promise<{requestsToday: number, tokensToday: number}>}
+   */
+  getUsageStats: () => {
+    console.log('[Preload] Invoking ai:getUsageStats');
+    return ipcRenderer.invoke('ai:getUsageStats');
+  },
 
-    /**
-     * Fetches today's request count and tokens used.
-     * @returns {Promise<{requestsToday: number, tokensToday: number}>}
-     */
-    getUsageStats: () => ipcRenderer.invoke('ai:getUsageStats'),
+  /**
+   * Returns task profile bindings and available model choices.
+   * @returns {Promise<{profiles: Array<{profile: string, model: string, description: string}>, availableModels: Array}>}
+   */
+  getProfiles: () => {
+    console.log('[Preload] Invoking ai:getProfiles');
+    return ipcRenderer.invoke('ai:getProfiles');
+  },
 
-    /**
-     * Returns task profile bindings and available model choices.
-     * @returns {Promise<{profiles: Array<{profile: string, model: string, description: string}>, availableModels: Array}>}
-     */
-    getProfiles: () => ipcRenderer.invoke('ai:getProfiles'),
-
-    /**
-     * Rebinds a task profile to a specific model identifier.
-     * @param {string} profile
-     * @param {string} model
-     * @returns {Promise<{success: boolean, error?: string}>}
-     */
-    setProfile: (profile, model) => ipcRenderer.invoke('ai:setProfile', { profile, model }),
+  /**
+   * Rebinds a task profile to a specific model identifier.
+   * @param {string} profile
+   * @param {string} model
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  setProfile: (profile, model) => {
+    console.log('[Preload] Invoking ai:setProfile', { profile, model });
+    return ipcRenderer.invoke('ai:setProfile', { profile, model });
   },
 };
 
+// Expose exact `window.ai` namespace required by renderer
+contextBridge.exposeInMainWorld('ai', aiBridge);
+
 // Expose on both `window.api` and `window.electronAPI` for developer ergonomics and backward compatibility
-contextBridge.exposeInMainWorld('api', apiBridge);
-contextBridge.exposeInMainWorld('electronAPI', apiBridge);
+const fullBridge = {
+  ...apiBridge,
+  ai: aiBridge,
+};
+
+contextBridge.exposeInMainWorld('api', fullBridge);
+contextBridge.exposeInMainWorld('electronAPI', fullBridge);
+console.log('[Preload] contextBridge initialized with window.ai, window.api, and window.electronAPI');
