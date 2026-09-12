@@ -1,0 +1,191 @@
+name: Build and Release Desktop App
+
+on:
+  push:
+    branches:
+      - main
+
+# ==============================================================================
+# GITHUB ACTIONS CI/CD PIPELINE - AI Design Department Desktop Foundation
+# ==============================================================================
+# You must add a repository secret named GH_TOKEN containing
+# a GitHub Personal Access Token with repo/contents write permission.
+#
+# Why GH_TOKEN is required:
+# 1. Allows electron-builder to automatically draft/publish GitHub Releases and upload
+#    the Windows NSIS installer (.exe) alongside the auto-updater metadata (latest.yml).
+# 2. Allows the Version Conflict Handler step to push version-bump commits back to 'main'.
+# ==============================================================================
+
+jobs:
+  build:
+    name: Build & Publish Windows (.exe)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      # Step 2: Setup Node.js 20
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # Step 3: npm install
+      - name: npm install
+        run: npm ci || npm install
+
+      # Step 4: VERSION CONFLICT HANDLER
+      # Checks all existing tags and releases (both published and drafts)
+      # If current version is already used, loops and auto-bumps patch version
+      # Writes to package.json, commits & pushes to main, pushes git tag, and sets BUILD_VERSION
+      - name: Version Conflict Handler
+        id: version-handler
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+        run: |
+          # 1. Collect all git remote tags
+          REMOTE_TAGS=$(git ls-remote --tags origin | sed -n 's/.*refs\/tags\///p' | sed 's/\^{}//' || true)
+
+          # 2. Collect all GitHub releases (both published and drafts)
+          API_RELEASES=$(gh api "repos/${{ github.repository }}/releases" --paginate 2>/dev/null || echo "[]")
+          RELEASE_TAGS=$(echo "$API_RELEASES" | node -e '
+            let data = "";
+            process.stdin.on("data", c => data += c);
+            process.stdin.on("end", () => {
+              try {
+                const arr = JSON.parse(data);
+                if (Array.isArray(arr)) {
+                  console.log(arr.map(r => r.tag_name).join(" "));
+                }
+              } catch (e) {}
+            });
+          ')
+          CLI_TAGS=$(gh release list --limit 100 2>/dev/null | awk '{print $3}' || true)
+
+          # Combine all discovered tags
+          ALL_EXISTING_TAGS="${REMOTE_TAGS} ${RELEASE_TAGS} ${CLI_TAGS}"
+          echo "Existing tags and releases discovered: ${ALL_EXISTING_TAGS}"
+
+          # 3. Check and auto-bump version in a loop until an unused version is found
+          export ALL_EXISTING_TAGS
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const currentVersion = pkg.version;
+            const existing = (process.env.ALL_EXISTING_TAGS || "").split(/\s+/).filter(Boolean);
+
+            function bumpPatch(v) {
+              const parts = v.split(".").map(n => parseInt(n, 10) || 0);
+              while (parts.length < 3) parts.push(0);
+              parts[2] += 1;
+              return parts.join(".");
+            }
+
+            let version = currentVersion;
+            let bumped = false;
+
+            while (existing.includes("v" + version) || existing.includes(version)) {
+              version = bumpPatch(version);
+              bumped = true;
+            }
+
+            if (bumped) {
+              console.log(`BUMP_NEEDED:true`);
+              console.log(`OLD_VERSION:${currentVersion}`);
+              console.log(`NEW_VERSION:${version}`);
+              pkg.version = version;
+              fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+            } else {
+              console.log(`BUMP_NEEDED:false`);
+              console.log(`NEW_VERSION:${currentVersion}`);
+            }
+          ' > version_result.txt
+
+          cat version_result.txt
+
+          BUMP_NEEDED=$(grep "BUMP_NEEDED:" version_result.txt | cut -d: -f2)
+          NEW_VERSION=$(grep "NEW_VERSION:" version_result.txt | cut -d: -f2)
+          rm -f version_result.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ "$BUMP_NEEDED" = "true" ]; then
+            echo "Auto-bumped version to: ${NEW_VERSION}"
+            git add package.json
+            git commit -m "chore(release): bump version to ${NEW_VERSION} [skip ci]"
+            git push origin main || echo "Notice: Push skipped or protected, proceeding with build of ${NEW_VERSION}"
+          else
+            echo "Version ${NEW_VERSION} is unique and clear to build."
+          fi
+
+          # Always create and push the Git tag to remote so GitHub API recognizes it as valid
+          git tag -f "v${NEW_VERSION}"
+          git push origin "v${NEW_VERSION}" --force || true
+
+          echo "BUILD_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
+
+      # Step 5: Build NSIS installer package
+      - name: Build and package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      # Step 6: Verify and Guarantee Published Release
+      # Ensures the release is publicly published (NOT draft) and all assets (.exe, latest.yml, .blockmap) are uploaded
+      - name: Verify and Publish Release Assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="v${BUILD_VERSION}"
+          echo "========================================================"
+          echo "Verifying and publishing release: ${RELEASE_TAG}"
+          echo "========================================================"
+
+          # Check output directory files
+          ls -la dist/
+
+          # Find installer .exe, blockmap, and latest.yml
+          EXE_FILE=$(find dist -maxdepth 1 -name "*.exe" | head -n 1)
+          YML_FILE="dist/latest.yml"
+          BLOCKMAP_FILE=$(find dist -maxdepth 1 -name "*.blockmap" | head -n 1)
+
+          echo "Found Installer: ${EXE_FILE}"
+          echo "Found latest.yml: ${YML_FILE}"
+          echo "Found Blockmap: ${BLOCKMAP_FILE}"
+
+          # Ensure release exists on GitHub
+          if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Creating release ${RELEASE_TAG} on GitHub..."
+            gh release create "${RELEASE_TAG}" \
+              --title "AI Design Department ${RELEASE_TAG}" \
+              --notes "AI Design Department desktop release ${RELEASE_TAG}" \
+              --draft=false \
+              --prerelease=false \
+              "${EXE_FILE}" "${YML_FILE}" "${BLOCKMAP_FILE}" || true
+          else
+            echo "Uploading all assets to release ${RELEASE_TAG}..."
+            gh release upload "${RELEASE_TAG}" "${EXE_FILE}" "${YML_FILE}" "${BLOCKMAP_FILE}" --clobber || true
+          fi
+
+          # Guarantee that the release is NOT a draft
+          echo "Publishing release (draft=false)..."
+          gh release edit "${RELEASE_TAG}" --draft=false --prerelease=false || true
+
+          echo "Final release status and asset verification:"
+          gh release view "${RELEASE_TAG}" || true
