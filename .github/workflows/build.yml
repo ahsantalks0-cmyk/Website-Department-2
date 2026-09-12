@@ -161,14 +161,50 @@ jobs:
           # Check output directory files
           ls -la dist/
 
-          # Find installer .exe, blockmap, and latest.yml
-          EXE_FILE=$(find dist -maxdepth 1 -name "*.exe" | head -n 1)
-          YML_FILE="dist/latest.yml"
-          BLOCKMAP_FILE=$(find dist -maxdepth 1 -name "*.blockmap" | head -n 1)
+          # 1. Read exact expected installer filename from dist/latest.yml
+          EXPECTED_NAME=""
+          if [ -f "dist/latest.yml" ]; then
+            EXPECTED_NAME=$(node -e '
+              const fs = require("fs");
+              try {
+                const y = fs.readFileSync("dist/latest.yml", "utf8");
+                const m = y.match(/path:\s*([^\r\n]+)/) || y.match(/url:\s*([^\r\n]+)/);
+                if (m) console.log(m[1].trim());
+              } catch(e) {}
+            ')
+          fi
+          echo "Expected installer from latest.yml: ${EXPECTED_NAME}"
 
-          echo "Found Installer: ${EXE_FILE}"
-          echo "Found latest.yml: ${YML_FILE}"
-          echo "Found Blockmap: ${BLOCKMAP_FILE}"
+          # 2. Discover generated primary .exe
+          PRIMARY_EXE=$(find dist -maxdepth 1 -name "*.exe" | head -n 1)
+          echo "Found primary installer: ${PRIMARY_EXE}"
+
+          # 3. Ensure both hyphenated and dot-separated filename variants exist
+          # This prevents 404 errors regardless of whether electron-updater requests hyphenated or dotted URLs
+          if [ -n "${PRIMARY_EXE}" ] && [ -f "${PRIMARY_EXE}" ]; then
+            HYPHEN_NAME="dist/AI-Design-Department-Setup-${BUILD_VERSION}.exe"
+            DOT_NAME="dist/AI.Design.Department.Setup.${BUILD_VERSION}.exe"
+
+            if [ -n "${EXPECTED_NAME}" ]; then
+              cp -f "${PRIMARY_EXE}" "dist/${EXPECTED_NAME}" || true
+            fi
+            cp -f "${PRIMARY_EXE}" "${HYPHEN_NAME}" || true
+            cp -f "${PRIMARY_EXE}" "${DOT_NAME}" || true
+          fi
+
+          # 4. Ensure both blockmap variants exist
+          PRIMARY_BLOCKMAP=$(find dist -maxdepth 1 -name "*.blockmap" | head -n 1)
+          if [ -n "${PRIMARY_BLOCKMAP}" ] && [ -f "${PRIMARY_BLOCKMAP}" ]; then
+            cp -f "${PRIMARY_BLOCKMAP}" "dist/AI-Design-Department-Setup-${BUILD_VERSION}.exe.blockmap" || true
+            cp -f "${PRIMARY_BLOCKMAP}" "dist/AI.Design.Department.Setup.${BUILD_VERSION}.exe.blockmap" || true
+          fi
+
+          echo "Files in dist after normalization:"
+          ls -la dist/
+
+          # Collect all release assets
+          mapfile -t ASSETS < <(find dist -maxdepth 1 -type f \( -name "*.exe" -o -name "*.blockmap" -o -name "latest.yml" \))
+          echo "Assets to upload: ${ASSETS[*]}"
 
           # Ensure release exists on GitHub
           if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
@@ -178,15 +214,33 @@ jobs:
               --notes "AI Design Department desktop release ${RELEASE_TAG}" \
               --draft=false \
               --prerelease=false \
-              "${EXE_FILE}" "${YML_FILE}" "${BLOCKMAP_FILE}" || true
+              "${ASSETS[@]}" || true
           else
             echo "Uploading all assets to release ${RELEASE_TAG}..."
-            gh release upload "${RELEASE_TAG}" "${EXE_FILE}" "${YML_FILE}" "${BLOCKMAP_FILE}" --clobber || true
+            gh release upload "${RELEASE_TAG}" "${ASSETS[@]}" --clobber || true
           fi
 
           # Guarantee that the release is NOT a draft
           echo "Publishing release (draft=false)..."
           gh release edit "${RELEASE_TAG}" --draft=false --prerelease=false || true
 
-          echo "Final release status and asset verification:"
+          # Retroactive compatibility patch for v1.0.8:
+          # If release v1.0.8 exists and is missing AI-Design-Department-Setup-1.0.8.exe, upload it
+          if gh release view "v1.0.8" >/dev/null 2>&1; then
+            echo "Checking v1.0.8 assets for naming divergence..."
+            if ! gh release view "v1.0.8" --json assets -q '.assets[].name' | grep -q "^AI-Design-Department-Setup-1.0.8.exe$"; then
+              echo "Fixing v1.0.8: downloading AI.Design.Department.Setup.1.0.8.exe and uploading AI-Design-Department-Setup-1.0.8.exe..."
+              gh release download "v1.0.8" -p "AI.Design.Department.Setup.1.0.8.exe" -O "temp-108.exe" || true
+              if [ -f "temp-108.exe" ]; then
+                cp "temp-108.exe" "AI-Design-Department-Setup-1.0.8.exe"
+                gh release upload "v1.0.8" "AI-Design-Department-Setup-1.0.8.exe" --clobber || true
+                rm -f "temp-108.exe" "AI-Design-Department-Setup-1.0.8.exe"
+                echo "Successfully patched v1.0.8 release with AI-Design-Department-Setup-1.0.8.exe!"
+              fi
+            else
+              echo "Release v1.0.8 already has AI-Design-Department-Setup-1.0.8.exe."
+            fi
+          fi
+
+          echo "Final release status and asset verification for ${RELEASE_TAG}:"
           gh release view "${RELEASE_TAG}" || true

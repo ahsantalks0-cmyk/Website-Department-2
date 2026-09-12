@@ -83,6 +83,25 @@
     topbarUpdateBanner = document.getElementById('topbar-update-banner');
     topbarUpdateVersion = document.getElementById('topbar-update-version');
 
+    const btnOpenReleases = document.getElementById('btn-open-github-releases');
+    if (btnOpenReleases) {
+      btnOpenReleases.addEventListener('click', () => {
+        const repoReleasesUrl = 'https://github.com/ahsantalks0-cmyk/Website-Department-2/releases';
+        if (window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
+          window.electronAPI.openExternal(repoReleasesUrl);
+        } else {
+          window.open(repoReleasesUrl, '_blank');
+        }
+      });
+    }
+
+    const btnRetryUpdate = document.getElementById('btn-retry-update');
+    if (btnRetryUpdate) {
+      btnRetryUpdate.addEventListener('click', () => {
+        handleCheckForUpdates();
+      });
+    }
+
     // Attach button actions
     if (btnCheckUpdates) btnCheckUpdates.addEventListener('click', handleCheckForUpdates);
     if (btnDownloadUpdate) btnDownloadUpdate.addEventListener('click', handleDownloadUpdate);
@@ -340,8 +359,27 @@
 
   function showError(msg) {
     resetCheckingState();
+    isDownloading = false;
+
+    // Hide stuck download progress bar
+    if (progressContainer) {
+      progressContainer.classList.remove('visible');
+    }
+
+    // Restore download button so user can retry or re-initiate
+    if (btnDownloadUpdate) {
+      btnDownloadUpdate.style.display = 'inline-flex';
+      btnDownloadUpdate.disabled = false;
+    }
+
     if (errorAlertBox) errorAlertBox.classList.add('visible');
-    if (errorMessageText) errorMessageText.textContent = msg;
+
+    let formattedMsg = msg;
+    if (typeof msg === 'string' && (msg.includes('404') || msg.includes('status 404'))) {
+      formattedMsg = 'The release installer file could not be found on GitHub (HTTP 404). This happens when the release file name on GitHub does not match latest.yml. You can click "Download Manually from GitHub" below or wait for the automatic build to finish.';
+    }
+
+    if (errorMessageText) errorMessageText.textContent = formattedMsg;
     setStatusText('Update check completed with warning.');
   }
 

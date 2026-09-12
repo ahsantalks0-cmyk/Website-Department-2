@@ -151,6 +151,11 @@ const apiBridge = {
   'updater:check': () => ipcRenderer.invoke('check-for-updates'),
   'updater:download': () => ipcRenderer.invoke('download-update'),
   'updater:install': () => ipcRenderer.invoke('install-update'),
+
+  /**
+   * Opens external URLs securely in the default browser
+   */
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 };
 
 /**

@@ -1,11 +1,15 @@
 {
   "name": "ai-design-department",
   "productName": "AI Design Department",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Desktop application foundation for AI Design Department with Apple-style UI, auto-updater, and GitHub Actions CI/CD pipeline",
   "author": "AI Design Department",
   "main": "main.js",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ahsantalks0-cmyk/Website-Department-2.git"
+  },
   "scripts": {
     "start": "electron .",
     "rebuild": "electron-builder install-app-deps",
@@ -19,6 +23,7 @@
   "build": {
     "appId": "com.aidepartment.app",
     "productName": "AI Design Department",
+    "artifactName": "AI-Design-Department-Setup-${version}.${ext}",
     "directories": {
       "output": "dist"
     },
@@ -41,17 +46,21 @@
           ]
         }
       ],
-      "icon": "assets/icons/appIcon.png"
+      "icon": "assets/icons/appIcon.png",
+      "artifactName": "AI-Design-Department-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "AI Design Department"
+      "shortcutName": "AI Design Department",
+      "artifactName": "AI-Design-Department-Setup-${version}.${ext}"
     },
     "publish": {
-      "provider": "github"
+      "provider": "github",
+      "owner": "ahsantalks0-cmyk",
+      "repo": "Website-Department-2"
     }
   },
   "dependencies": {

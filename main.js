@@ -10,7 +10,7 @@
  * ==============================================================================
  */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getDb, runMigrations, closeDb } = require('./db/database');
@@ -283,6 +283,23 @@ ipcMain.handle('install-update', () => {
     autoUpdater.quitAndInstall(false, true);
   });
   return { status: 'success' };
+});
+
+/**
+ * IPC Channel: 'open-external'
+ * Securely opens external URLs in the default system browser
+ */
+ipcMain.handle('open-external', async (_event, url) => {
+  if (url && typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+    try {
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (err) {
+      console.error('[Shell] Failed to open external URL:', err);
+      return { success: false, error: err.message };
+    }
+  }
+  return { success: false, error: 'Invalid URL scheme' };
 });
 
 // ==============================================================================
