@@ -643,21 +643,205 @@
     },
   };
 
+  const STORAGE_KEY_CHAT_CONVS = 'aidepartment_mock_chat_convs';
+  const STORAGE_KEY_CHAT_MSGS = 'aidepartment_mock_chat_msgs';
+  const STORAGE_KEY_CHECKLISTS = 'aidepartment_mock_checklists';
+
+  const mockChatApi = {
+    async getConversations() {
+      let convs = getStored(STORAGE_KEY_CHAT_CONVS, null);
+      if (!convs) {
+        convs = [
+          {
+            id: 1,
+            project_id: 1,
+            project_name: 'Nexus SaaS Landing Page',
+            title: 'Nexus SaaS Landing Page Architecture',
+            created_at: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+            updated_at: new Date().toISOString(),
+            last_message: 'Project brief and design tokens recorded. Handoff to Department Head completed.',
+          },
+        ];
+        setStored(STORAGE_KEY_CHAT_CONVS, convs);
+      }
+      return convs;
+    },
+    async newConversation(projectId = null) {
+      const convs = getStored(STORAGE_KEY_CHAT_CONVS, []);
+      const newId = convs.reduce((m, c) => Math.max(m, c.id || 0), 0) + 1;
+      const newConv = {
+        id: newId,
+        project_id: projectId,
+        title: 'New Project Consultation',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      convs.unshift(newConv);
+      setStored(STORAGE_KEY_CHAT_CONVS, convs);
+      return newConv;
+    },
+    async getMessages(conversationId) {
+      const allMsgs = getStored(STORAGE_KEY_CHAT_MSGS, {});
+      let msgs = allMsgs[conversationId];
+      if (!msgs) {
+        if (Number(conversationId) === 1) {
+          msgs = [
+            {
+              id: 1,
+              conversation_id: 1,
+              role: 'user',
+              text: 'Build me a modern developer analytics marketing page with high-contrast typography.',
+              created_at: new Date(Date.now() - 1000 * 60 * 34).toISOString(),
+            },
+            {
+              id: 2,
+              conversation_id: 1,
+              role: 'agent',
+              text: 'Welcome to the AI Design Department! I have structured the requirements for **Nexus SaaS Landing Page**:\n\n- **Tech Stack:** Next.js + Tailwind CSS + shadcn/ui + Supabase\n- **Design Style:** Modernist Tech Architecture with strict 8pt spatial grid\n- **Pages:** Home, Dashboard, Settings\n- **Database Timing:** Deferred until UI approval\n\nAll documents are populated in the Knowledge Store and handed off to our Department Head.',
+              created_at: new Date(Date.now() - 1000 * 60 * 33).toISOString(),
+              extracted: {
+                projectName: 'Nexus SaaS Landing Page',
+                missingItems: ['Database setup (deferred until UI approval)', 'Final QA verification'],
+                suggestions: ['View Task Monitor', 'Check project details', 'Review pages'],
+                interviewState: 'complete',
+              },
+            },
+          ];
+          allMsgs[conversationId] = msgs;
+          setStored(STORAGE_KEY_CHAT_MSGS, allMsgs);
+        } else {
+          msgs = [];
+        }
+      }
+      return msgs;
+    },
+    async sendMessage(payload) {
+      const { conversationId, text, images = [] } = payload;
+      const allMsgs = getStored(STORAGE_KEY_CHAT_MSGS, {});
+      const msgs = allMsgs[conversationId] || [];
+
+      const userMsg = {
+        id: Date.now(),
+        conversation_id: Number(conversationId),
+        role: 'user',
+        text,
+        images,
+        created_at: new Date().toISOString(),
+      };
+      msgs.push(userMsg);
+
+      // Determine conversational state
+      const lower = (text || '').toLowerCase();
+      let replyText = '';
+      let missingItems = [];
+      let suggestions = [];
+      let interviewState = 'gathering';
+      let justCreatedProject = false;
+      let projectId = null;
+
+      if (/(next\.js|html|css|tailwind|you design it|self design|defer|after design|build)/i.test(lower)) {
+        interviewState = 'complete';
+        replyText = `Understood! I have captured all architectural requirements:\n- **Tech Stack:** Next.js + Tailwind + shadcn + Supabase\n- **Design Direction:** Unique Department Custom Craft (Apple-grade contrast & density)\n- **Pages:** Home, About, Pricing, Contact\n- **Database Timing:** Deferred until after visual design approval\n\nI have initialized your project in the **Project Knowledge Store** and dispatched the "project-handoff" task graph to the Orchestrator!`;
+        missingItems = ['Database setup (deferred)', 'Cross-device QA check'];
+        suggestions = ['View Task Monitor', 'Check project details', 'Add another page'];
+        justCreatedProject = true;
+        projectId = 1;
+
+        // Update conversation title
+        const convs = getStored(STORAGE_KEY_CHAT_CONVS, []);
+        const targetConv = convs.find((c) => c.id === Number(conversationId));
+        if (targetConv) {
+          targetConv.title = text.slice(0, 32);
+          targetConv.project_id = 1;
+          targetConv.project_name = 'Nexus SaaS Landing Page';
+          targetConv.updated_at = new Date().toISOString();
+          setStored(STORAGE_KEY_CHAT_CONVS, convs);
+        }
+      } else {
+        replyText = `Welcome to the AI Design Department! I'm your Senior Project Lead.\n\nTo ensure we build your exact vision, could you clarify:\n1. **Tech Stack:** Simple HTML/CSS/JS or modern Next.js + Tailwind + shadcn + Supabase?\n2. **Design Direction:** Would you like to share a reference image, describe a specific style, or should our department design it uniquely for you?\n3. **Database Timing:** Set up now, or defer until after visual design approval?`;
+        missingItems = ['Tech stack unconfirmed', 'Design direction needed', 'Database timing pending'];
+        suggestions = ['Next.js + Tailwind stack', 'Simple HTML/CSS/JS', 'You design it for me', 'Setup DB after design approval'];
+      }
+
+      const agentMsg = {
+        id: Date.now() + 1,
+        conversation_id: Number(conversationId),
+        role: 'agent',
+        text: replyText,
+        created_at: new Date().toISOString(),
+        extracted: {
+          missingItems,
+          suggestions,
+          interviewState,
+          justCreatedProject,
+          projectId,
+        },
+      };
+      msgs.push(agentMsg);
+      allMsgs[conversationId] = msgs;
+      setStored(STORAGE_KEY_CHAT_MSGS, allMsgs);
+
+      return {
+        success: true,
+        conversationId,
+        userMessage: userMsg,
+        agentMessage: agentMsg,
+        missingItems,
+        suggestions,
+        justCreatedProject,
+      };
+    },
+    async attachImage() {
+      return { success: false, error: 'File picker fallback available via button' };
+    },
+    async getChecklist(projectId) {
+      return {
+        projectId,
+        items: [
+          { id: 'design-system', text: 'Design system & token definition', done: true },
+          { id: 'page-design-1', text: 'Generate layout & code for Home page', done: true },
+          { id: 'page-design-2', text: 'Generate layout & code for Dashboard page', done: false },
+          { id: 'database-setup', text: 'Database setup (deferred until UI approval)', done: false },
+          { id: 'seo-meta', text: 'SEO metadata & open graph tags', done: false },
+          { id: 'final-qa', text: 'Cross-device QA & accessibility validation', done: false },
+        ],
+      };
+    },
+    async markChecklistDone(projectId, itemKey) {
+      return { success: true };
+    },
+    async deleteConversation(id) {
+      const convs = getStored(STORAGE_KEY_CHAT_CONVS, []).filter((c) => c.id !== Number(id));
+      setStored(STORAGE_KEY_CHAT_CONVS, convs);
+      return true;
+    },
+    onTyping() {
+      return () => {};
+    },
+  };
+
   const shim = {
     getAppVersion: async () => '1.0.4',
     db: mockDbApi,
     ai: mockAiApi,
     store: mockStoreApi,
+    chat: mockChatApi,
     updater: null,
   };
 
   window.api = window.api || shim;
   window.electronAPI = window.electronAPI || shim;
   window.store = window.store || mockStoreApi;
+  window.chat = window.chat || mockChatApi;
 })();
 
 (function () {
   const views = {
+    chat: {
+      id: 'view-chat',
+      title: 'Senior Chat Agent',
+      subtitle: 'Project Lead • Requirements, Design & Orchestration',
+    },
     dashboard: {
       id: 'view-dashboard',
       title: 'Dashboard',
@@ -680,11 +864,11 @@
     },
   };
 
-  let activeTab = 'dashboard';
+  let activeTab = 'chat';
 
   /**
    * Switches the active viewport and updates top bar indicators.
-   * @param {'dashboard' | 'projects' | 'settings'} tabKey
+   * @param {'chat' | 'dashboard' | 'projects' | 'settings'} tabKey
    */
   function navigateTo(tabKey) {
     if (!views[tabKey]) return;
@@ -721,7 +905,9 @@
     if (subtitleEl) subtitleEl.textContent = views[tabKey].subtitle;
 
     // Synchronize View State with Controllers
-    if (tabKey === 'dashboard' && window.DashboardController) {
+    if (tabKey === 'chat' && window.ChatController) {
+      window.ChatController.load();
+    } else if (tabKey === 'dashboard' && window.DashboardController) {
       window.DashboardController.refresh();
     } else if (tabKey === 'projects' && window.ProjectsController) {
       window.ProjectsController.load();
@@ -755,7 +941,7 @@
       });
     }
 
-    // Set initial view
-    navigateTo('dashboard');
+    // Set initial view: Senior Chat Agent first!
+    navigateTo('chat');
   });
 })();

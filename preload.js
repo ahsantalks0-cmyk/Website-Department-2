@@ -298,10 +298,31 @@ const storeBridge = {
   importProject: (zipPath) => ipcRenderer.invoke('store:importProject', zipPath),
 };
 
-// Expose exact `window.ai`, `window.orchestrator`, and `window.store` namespaces
+/**
+ * Phase 6: Senior Chat Agent Bridge
+ */
+const chatBridge = {
+  getConversations: () => ipcRenderer.invoke('chat:getConversations'),
+  newConversation: (projectId) => ipcRenderer.invoke('chat:newConversation', projectId),
+  getMessages: (conversationId) => ipcRenderer.invoke('chat:getMessages', conversationId),
+  sendMessage: (payload) => ipcRenderer.invoke('chat:sendMessage', payload),
+  attachImage: () => ipcRenderer.invoke('chat:attachImage'),
+  getChecklist: (projectId) => ipcRenderer.invoke('chat:getChecklist', projectId),
+  markChecklistDone: (projectId, itemKey) => ipcRenderer.invoke('chat:markChecklistDone', { projectId, itemKey }),
+  deleteConversation: (id) => ipcRenderer.invoke('chat:deleteConversation', id),
+  onTyping: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const subscription = (_event, data) => callback(data);
+    ipcRenderer.on('chat:typing', subscription);
+    return () => ipcRenderer.removeListener('chat:typing', subscription);
+  },
+};
+
+// Expose exact `window.ai`, `window.orchestrator`, `window.store`, and `window.chat` namespaces
 contextBridge.exposeInMainWorld('ai', aiBridge);
 contextBridge.exposeInMainWorld('orchestrator', orchestratorBridge);
 contextBridge.exposeInMainWorld('store', storeBridge);
+contextBridge.exposeInMainWorld('chat', chatBridge);
 
 // Expose on both `window.api` and `window.electronAPI` for developer ergonomics and backward compatibility
 const fullBridge = {
@@ -309,8 +330,9 @@ const fullBridge = {
   ai: aiBridge,
   orchestrator: orchestratorBridge,
   store: storeBridge,
+  chat: chatBridge,
 };
 
 contextBridge.exposeInMainWorld('api', fullBridge);
 contextBridge.exposeInMainWorld('electronAPI', fullBridge);
-console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.store, window.api, and window.electronAPI');
+console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.store, window.chat, window.api, and window.electronAPI');

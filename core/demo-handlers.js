@@ -166,18 +166,55 @@ async function demoFailTestHandler({ params, context }) {
 }
 
 /**
- * Registers all three demo handlers into the global HandlerRegistry.
+ * 4. "department-head.stub": Handoff stub for Phase 6 Senior Chat Agent.
+ * Emits incremental progress and marks handoff ready for Phase 7 Department Head.
+ */
+async function departmentHeadStubHandler({ params, context, signal }) {
+  const projectName = params?.projectName || `Project #${params?.projectId || 'Alpha'}`;
+  context.log(`Department Head receiving handoff for "${projectName}"...`);
+
+  context.emit('progress', { progress: 15, message: 'Receiving project brief and architecture specs...' });
+  await new Promise((r) => setTimeout(r, 600));
+  if (signal?.aborted) throw new Error('Handoff aborted');
+
+  context.emit('progress', { progress: 50, message: 'Reviewing design tokens and page hierarchy...' });
+  await new Promise((r) => setTimeout(r, 600));
+  if (signal?.aborted) throw new Error('Handoff aborted');
+
+  context.emit('progress', { progress: 85, message: 'Queuing generation pipeline for multi-agent dispatch...' });
+  await new Promise((r) => setTimeout(r, 400));
+  if (signal?.aborted) throw new Error('Handoff aborted');
+
+  context.emit('progress', { progress: 100, message: 'Handoff recorded. Awaiting Department Head agent activation.' });
+  context.log('Project handoff completed successfully.');
+
+  return {
+    success: true,
+    output: {
+      status: 'awaiting-department-head',
+      note: 'Department Head agent arrives in the next phase',
+      projectId: params?.projectId || null,
+      projectName,
+      handedOffAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Registers all demo and stub handlers into the global HandlerRegistry.
  */
 function registerDemoHandlers() {
   handlerRegistry.registerHandler('demo.wait', demoWaitHandler);
   handlerRegistry.registerHandler('demo.ai-ping', demoAiPingHandler);
   handlerRegistry.registerHandler('demo.fail-test', demoFailTestHandler);
-  console.log('[DemoHandlers] Registered: demo.wait, demo.ai-ping, demo.fail-test');
+  handlerRegistry.registerHandler('department-head.stub', departmentHeadStubHandler);
+  console.log('[DemoHandlers] Registered: demo.wait, demo.ai-ping, demo.fail-test, department-head.stub');
 }
 
 module.exports = {
   demoWaitHandler,
   demoAiPingHandler,
   demoFailTestHandler,
+  departmentHeadStubHandler,
   registerDemoHandlers,
 };

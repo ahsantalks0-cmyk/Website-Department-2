@@ -224,6 +224,43 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 6,
+    name: '006_conversation_tables',
+    up: (db) => {
+      // 13. Conversations table (Phase 6 Senior Chat Agent persistence)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS conversations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+          title TEXT NOT NULL DEFAULT 'New Project Consultation',
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+      `);
+
+      // 14. Messages table (chat turns with vision attachments & extracted metadata)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+          role TEXT NOT NULL,
+          text TEXT NOT NULL,
+          images_json TEXT,
+          intent TEXT,
+          extracted_json TEXT,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_conversations_project_id ON conversations(project_id);
+        CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+        CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at ASC);
+      `);
+    },
+  },
 ];
 
 module.exports = {

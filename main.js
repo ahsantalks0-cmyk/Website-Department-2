@@ -15,8 +15,9 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getDb, runMigrations, closeDb } = require('./db/database');
 const { registerAiHandlers, aiHandler } = require('./ai/ai-handler.js');
-const { registerOrchestratorHandlers } = require('./core/orchestrator-ipc.js');
+const { registerOrchestratorHandlers, orchestrator } = require('./core/orchestrator-ipc.js');
 const { registerStoreIpcHandlers } = require('./core/store-handler.js');
+const { registerChatIpcHandlers } = require('./agents/chat-handler.js');
 
 // Keep global reference of the window object to prevent garbage collection
 let mainWindow = null;
@@ -55,6 +56,8 @@ if (!gotTheLock) {
     registerOrchestratorHandlers(db, aiHandler);
     console.log('[App] Initializing Phase 5 Project Knowledge Store...');
     registerStoreIpcHandlers();
+    console.log('[App] Initializing Phase 6 Senior Chat Agent...');
+    registerChatIpcHandlers(aiHandler, orchestrator);
 
     createWindow();
 
