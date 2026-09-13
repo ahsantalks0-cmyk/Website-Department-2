@@ -116,29 +116,91 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
 
       const systemInstruction = SENIOR_CHAT_SYSTEM_PROMPT + contextAddition;
 
-      // 6. Build prompt turns
-      const fullHistory = conversationStore.getRecentHistory(convId, 20);
-      const promptText = `User says: "${text}"\nAttached images count: ${images.length}`;
+      // 6. Build multi-turn conversation contents
+      const historyTurns = conversationStore.getRecentHistory(convId, 8);
+      const contents = [];
+
+      for (const turn of historyTurns) {
+        if (turn.text) {
+          contents.push({
+            role: turn.role === 'agent' ? 'model' : 'user',
+            text: turn.text,
+          });
+        }
+      }
+
+      // Ensure current user turn is present
+      if (contents.length === 0 || contents[contents.length - 1].text !== text) {
+        contents.push({
+          role: 'user',
+          text,
+        });
+      }
 
       // 7. Invoke Multi-Provider AI Engine with Vision & Structured Schema
+      const startTime = Date.now();
       let aiResponse = null;
       if (this.aiHandler && typeof this.aiHandler.generate === 'function') {
         try {
           aiResponse = await this.aiHandler.generate({
-            prompt: promptText,
+            contents,
+            prompt: text,
             systemInstruction,
             temperature: 0.3,
             images,
-            responseSchema: SENIOR_CHAT_RESPONSE_SCHEMA,
+            schema: SENIOR_CHAT_RESPONSE_SCHEMA,
             taskProfile: 'reasoning',
           });
         } catch (err) {
-          console.warn('[SeniorChatAgent] AI call encountered error:', err.message);
+          console.error('[SeniorChatAgent] AI call encountered error:', err.message);
+          aiResponse = { success: false, error: err.message };
         }
+      } else {
+        aiResponse = { success: false, error: 'AI subsystem is not initialized or provider bridge is missing.' };
+      }
+
+      const latency = Date.now() - startTime;
+      if (aiResponse && aiResponse.success) {
+        console.log('[SeniorChatAgent] Chat request completed:', {
+          provider: aiResponse.provider || this.aiHandler?.registry?.activeProviderId || 'google',
+          model: aiResponse.model || this.aiHandler?.registry?.getActiveModel(),
+          tokensIn: aiResponse.usage?.promptTokens || aiResponse.usage?.tokensIn || 0,
+          tokensOut: aiResponse.usage?.completionTokens || aiResponse.usage?.tokensOut || 0,
+          latency: `${latency}ms`,
+        });
+      }
+
+      // If AI call failed, DO NOT return a canned fallback! Return the real error!
+      if (!aiResponse || !aiResponse.success) {
+        const errMsg = aiResponse?.error || 'Unknown error communicating with AI model.';
+        console.error('[SeniorChatAgent] AI generation failed, surfacing real error to user:', errMsg);
+
+        const errorText = `⚠️ **AI Model Error**: ${errMsg}\n\nPlease verify your API key and selected model in **Settings > AI Models**.`;
+        const agentMsgRecord = conversationStore.addMessage({
+          conversationId: convId,
+          role: 'agent',
+          text: errorText,
+          intent: 'error',
+          extracted: {
+            error: errMsg,
+          },
+        });
+
+        return {
+          success: true,
+          conversationId: convId,
+          projectId,
+          userMessage: userMsgRecord,
+          agentMessage: agentMsgRecord,
+          checklist: projectId ? projectChecklist.getChecklist(projectId) : null,
+          missingItems: currentMissingItems,
+          suggestions: ['Check Settings > AI Models', 'Retry message'],
+          justCreatedProject: false,
+        };
       }
 
       // 8. Parse structured result or fall back gracefully
-      let parsedResult = this.parseAiResponse(aiResponse?.text || aiResponse?.content, text, classification, projectData);
+      let parsedResult = this.parseAiResponse(aiResponse.text || aiResponse.content || aiResponse.data?.text, text, classification, projectData);
 
       // 9. Save any attached images as project assets if project is active
       if (projectId && Array.isArray(images) && images.length > 0) {
@@ -357,9 +419,10 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
    * Parses or generates fallback structured response.
    */
   parseAiResponse(rawText, userText, classification, activeProject) {
-    if (rawText) {
+    if (rawText && typeof rawText === 'string') {
+      const trimmed = rawText.trim();
       try {
-        let jsonStr = rawText.trim();
+        let jsonStr = trimmed;
         const startIdx = jsonStr.indexOf('{');
         const endIdx = jsonStr.lastIndexOf('}');
         if (startIdx !== -1 && endIdx !== -1) {
@@ -377,11 +440,23 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
           };
         }
       } catch (e) {
-        console.warn('[SeniorChatAgent] Could not parse AI JSON output directly, using fallback wrapper:', e.message);
+        console.log('[SeniorChatAgent] AI returned free-form text, using AI text response directly.');
+      }
+
+      // If AI returned plain text (e.g. greeting or direct answer in Urdu/English), use the AI text!
+      if (trimmed.length > 0) {
+        return {
+          replyToUser: trimmed,
+          intent: classification.intent.toLowerCase(),
+          interviewState: 'gathering',
+          extractedData: {},
+          missingItems: [],
+          suggestions: ['Tell me about tech stack options', 'I want to build a website'],
+        };
       }
     }
 
-    // Heuristic conversation flow fallback
+    // Heuristic conversation flow fallback ONLY if rawText was completely empty
     return this.buildConversationalFallback(userText, classification, activeProject);
   }
 
@@ -411,6 +486,31 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
         extractedData: {},
         missingItems: projectChecklist.getMissingItems(activeProject.id),
         suggestions: ['Review pages', 'Check design tokens', 'Add another page'],
+      };
+    }
+
+    // Greetings & Language-specific fallback checks (only if AI is completely unavailable)
+    const isUrduRequest = /(urdu|hindi|roman\s*urdu)/i.test(lower);
+    if (isUrduRequest) {
+      return {
+        replyToUser: `Jee bilkul! Main aap se Urdu ya Roman Urdu me baat kar sakta hoon. AI Design Department me aap ka khair maqdam hai! Aap kis tarah ki website ya application design karwana chahte hain?`,
+        intent: 'general_chat',
+        interviewState: 'gathering',
+        extractedData: {},
+        missingItems: [],
+        suggestions: ['Nayi website banani hai', 'Stack options dikhayein', 'Department kaise kaam karta hai?'],
+      };
+    }
+
+    const isGreeting = /^(hello|hi|hey|salam|assalam|aao|namaste|good\s*(morning|evening|afternoon)|who\s*are\s*you)/i.test(lower);
+    if (isGreeting) {
+      return {
+        replyToUser: `Hello! I'm your Senior Project Lead at the AI Design Department. How can I assist you today? If you'd like to build a new website or app, just let me know what you have in mind!`,
+        intent: 'general_chat',
+        interviewState: 'gathering',
+        extractedData: {},
+        missingItems: [],
+        suggestions: ['I want to build a website', 'Show tech stack options', 'Who are the agents?'],
       };
     }
 

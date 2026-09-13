@@ -66,6 +66,7 @@ class ProviderRegistry {
       if (activeRow && activeRow.value && this.instances.has(activeRow.value)) {
         this.activeProviderId = activeRow.value;
       }
+      console.log(`Active provider restored: ${this.activeProviderId}`);
 
       // 2. Load API keys for each provider
       for (const def of PROVIDER_DEFS) {
@@ -94,11 +95,20 @@ class ProviderRegistry {
           const instance = this.instances.get(def.id);
           if (instance) {
             instance.setApiKey(key);
+            console.log(`API key loaded for provider ${def.id} on startup`);
           }
         }
       }
 
-      console.log(`[ProviderRegistry] Loaded active provider: "${this.activeProviderId}"`);
+      // 3. Restore active model for active provider
+      const activeModel = this.getActiveModel(this.activeProviderId);
+      if (activeModel) {
+        console.log(`Active model restored: ${activeModel}`);
+      } else if (this.activeProviderId === 'google') {
+        const defaultGoogleModel = 'gemini-2.0-flash';
+        this.setActiveModel('google', defaultGoogleModel);
+        console.log(`Active model restored: ${defaultGoogleModel}`);
+      }
     } catch (err) {
       console.error('[ProviderRegistry] Failed to load state from SQLite:', err.message);
     }
@@ -243,7 +253,6 @@ class ProviderRegistry {
     }
 
     instance.setApiKey(key);
-    console.log(`[ProviderRegistry] Key saved for provider "${pId}".`);
 
     if (this.db) {
       try {
@@ -258,10 +267,20 @@ class ProviderRegistry {
             .prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)")
             .run(encrypted);
         }
+
+        // Verify write by reading back immediately
+        const verifyRow = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(`api_key_${pId}`);
+        if (!verifyRow || !verifyRow.value) {
+          throw new Error(`Immediate verification failed for api_key_${pId}`);
+        }
+
+        console.log(`API key saved for provider ${pId}`);
       } catch (err) {
         console.error(`[ProviderRegistry] Error saving encrypted key for ${pId}:`, err.message);
         return { success: false, error: `Storage failure: ${err.message}` };
       }
+    } else {
+      console.log(`API key saved for provider ${pId}`);
     }
 
     return { success: true };

@@ -53,6 +53,11 @@
       this.suggestionsBar = document.getElementById('chat-suggestions-bar');
       this.statusNotice = document.getElementById('chat-status-notice');
 
+      // Model badge in chat header
+      this.modelBadge = document.getElementById('chat-model-badge');
+      this.modelBadgeName = document.getElementById('chat-model-badge-name');
+      this.modelDot = document.getElementById('chat-model-dot');
+
       // Lightbox modal elements
       this.lightboxModal = document.getElementById('chat-image-lightbox');
       this.lightboxImg = document.getElementById('chat-lightbox-img');
@@ -119,6 +124,27 @@
         });
       }
 
+      if (this.modelBadge) {
+        this.modelBadge.addEventListener('click', () => {
+          const settingsBtn = document.querySelector('[data-tab="settings"]');
+          if (settingsBtn) settingsBtn.click();
+          setTimeout(() => {
+            const aiSettingsTab = document.querySelector('[data-settings-tab="ai"]');
+            if (aiSettingsTab) aiSettingsTab.click();
+          }, 50);
+        });
+      }
+
+      // Listen for window focus to refresh model badge when user returns from settings
+      window.addEventListener('focus', () => {
+        this.updateActiveModelBadge();
+      });
+
+      // Listen for AI config changes broadcast by settings
+      window.addEventListener('ai-config-changed', () => {
+        this.updateActiveModelBadge();
+      });
+
       // Listen for typing events from main process
       const api = getChatApi();
       if (api && typeof api.onTyping === 'function') {
@@ -134,7 +160,47 @@
      * Initializes and refreshes the chat view.
      */
     async load() {
-      await this.loadConversations();
+      await Promise.all([
+        this.loadConversations(),
+        this.updateActiveModelBadge(),
+      ]);
+    }
+
+    /**
+     * Updates the active model badge in the chat header to verify the active model live.
+     */
+    async updateActiveModelBadge() {
+      try {
+        if (!window.ai || typeof window.ai.getActiveConfig !== 'function') {
+          if (this.modelBadgeName) this.modelBadgeName.textContent = 'AI Offline';
+          if (this.modelDot) this.modelDot.className = 'chat-model-dot unconfigured';
+          return;
+        }
+
+        const config = await window.ai.getActiveConfig();
+        if (config) {
+          const modelName = config.model || 'gemini-2.0-flash';
+          const isConfigured = Boolean(config.configured);
+          
+          if (this.modelBadgeName) {
+            const pretty = modelName
+              .split('-')
+              .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+              .join(' ');
+            this.modelBadgeName.textContent = pretty;
+          }
+          if (this.modelDot) {
+            this.modelDot.className = isConfigured ? 'chat-model-dot' : 'chat-model-dot unconfigured';
+          }
+          if (this.modelBadge) {
+            this.modelBadge.title = isConfigured
+              ? `Active: ${config.provider || 'Google'} (${modelName}) — Click to configure`
+              : `API key not configured for ${config.provider || 'Google'} — Click to add key`;
+          }
+        }
+      } catch (err) {
+        console.warn('[ChatUI] Could not load active model badge:', err.message);
+      }
     }
 
     /**
@@ -393,14 +459,16 @@
       }
 
       const formattedText = this.formatMessageText(msg.text || '');
+      const isError = Boolean(msg.isError || msg.intent === 'error');
+      const bubbleClass = `chat-bubble${isError ? ' error-bubble' : ''}`;
 
       container.innerHTML = `
         <div class="chat-avatar">
-          ${isAgent ? '<span>SP</span>' : '<span>You</span>'}
+          ${isAgent ? (isError ? '<span style="color:var(--danger-color);">⚠️</span>' : '<span>SP</span>') : '<span>You</span>'}
         </div>
-        <div class="chat-bubble">
+        <div class="${bubbleClass}">
           <div class="chat-bubble-header">
-            <span class="chat-author-name">${isAgent ? 'Senior Project Lead' : 'You'}</span>
+            <span class="chat-author-name">${isAgent ? (isError ? 'Senior Project Lead (Error)' : 'Senior Project Lead') : 'You'}</span>
             <span class="chat-time">${this.formatMessageTime(msg.created_at)}</span>
           </div>
           ${imagesHtml}
@@ -596,12 +664,30 @@
           // Refresh conversations to show new title/message snippet
           await this.loadConversations();
         } else {
-          this.showNotice(response?.error || 'Failed to generate agent response', 'error');
+          const errMsg = response?.error || 'Failed to generate agent response';
+          this.showNotice(errMsg, 'error');
+          const errorElem = this.createMessageElement({
+            role: 'agent',
+            text: `⚠️ **AI Model Error**: ${errMsg}\n\nPlease check your API key and active model in **Settings > AI Models**.`,
+            created_at: new Date().toISOString(),
+            isError: true,
+          });
+          this.messagesContainer.appendChild(errorElem);
+          this.scrollToBottom();
         }
       } catch (err) {
         console.error('[ChatController] sendMessage error:', err);
         this.setTyping(false);
-        this.showNotice(err.message || 'Error communicating with Senior Chat Agent', 'error');
+        const errMsg = err.message || 'Error communicating with Senior Chat Agent';
+        this.showNotice(errMsg, 'error');
+        const errorElem = this.createMessageElement({
+          role: 'agent',
+          text: `⚠️ **Error**: ${errMsg}\n\nPlease verify your network and AI configuration in **Settings > AI Models**.`,
+          created_at: new Date().toISOString(),
+          isError: true,
+        });
+        this.messagesContainer.appendChild(errorElem);
+        this.scrollToBottom();
       } finally {
         this.isSubmitting = false;
         this.updateSendButtonState();

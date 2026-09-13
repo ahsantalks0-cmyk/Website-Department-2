@@ -99,19 +99,20 @@ Respond with ONLY this JSON schema:
               ],
             },
             confidence: { type: 'number' },
-            scope: { type: ['string', 'null'], enum: ['global', 'page', 'component', null] },
+            scope: { type: 'string', enum: ['global', 'page', 'component'] },
             changeTargets: { type: 'array', items: { type: 'string' } },
           },
           required: ['intent', 'confidence'],
         },
       });
 
-      if (response && response.success && response.text) {
+      const responseText = response?.data?.text || response?.text || '';
+      if (response && response.success && responseText) {
         let parsed;
         try {
-          parsed = JSON.parse(response.text);
+          parsed = JSON.parse(responseText);
         } catch (_) {
-          const match = response.text.match(/\{[\s\S]*\}/);
+          const match = responseText.match(/\{[\s\S]*\}/);
           if (match) parsed = JSON.parse(match[0]);
         }
 

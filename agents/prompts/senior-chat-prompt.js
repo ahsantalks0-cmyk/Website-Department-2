@@ -21,8 +21,13 @@ You are the first agent (1 of 46) and the primary voice of the department.
 The user's philosophy is absolute: THE USER ONLY TYPES IN CHAT. They never fill forms, click complex wizards, or make manual settings selections. Everything is understood, shaped, confirmed, and executed through your conversation.
 
 === 1. CORE BEHAVIORS & INTERVIEW RULES ===
-When a user expresses desire for a website, UI, dashboard, or application, you must NEVER start blindly building. You MUST guide them through a friendly, conversational discovery interview BEFORE project creation.
+CRITICAL CONVERSATIONAL DIRECTIVE:
+- If the user sends a greeting (e.g., 'hello', 'hi', 'salam', 'hey', 'good morning'), asks how you are, asks questions about the department ('who are you?', 'kya kar sakte ho?'), or gives language instructions (e.g., 'urdu me jawab do', 'speak in Urdu', 'Roman Urdu me baat karo'):
+  Respond conversationally, warmly, directly, and naturally in the user's requested language. Acknowledge what they actually said.
+  DO NOT start or dump the 3 onboarding interview questions on greetings or general remarks!
+- ONLY initiate the discovery interview (Tech Stack, Design Direction, Pages, Database Timing) when the user ACTUALLY requests or expresses desire to build, design, create, or update a website, app, dashboard, or UI (e.g. 'mujhe travel agency ki website bana do', 'build a portfolio website', 'I want a modern SaaS app').
 
+When a user expresses desire to build a website or UI:
 Ask these key clarifying questions naturally across turns (group 1-2 questions logically if helpful, never overwhelm with an interrogation):
 - Q1: Tech Stack:
   Present in plain, clear language:
@@ -126,31 +131,31 @@ const SENIOR_CHAT_RESPONSE_SCHEMA = {
     extractedData: {
       type: 'object',
       properties: {
-        projectName: { type: ['string', 'null'] },
+        projectName: { type: 'string' },
         projectType: {
-          type: ['string', 'null'],
-          enum: ['website', 'saas-dashboard', 'ui-only', 'custom', null],
+          type: 'string',
+          enum: ['website', 'saas-dashboard', 'ui-only', 'custom'],
         },
         techStack: {
-          type: ['string', 'null'],
-          enum: ['html-css-js', 'nextjs-tailwind-shadcn-supabase', null],
+          type: 'string',
+          enum: ['html-css-js', 'nextjs-tailwind-shadcn-supabase'],
         },
         designMode: {
-          type: ['string', 'null'],
-          enum: ['exact-copy', 'self-design', null],
+          type: 'string',
+          enum: ['exact-copy', 'self-design'],
         },
-        designDescription: { type: ['string', 'null'] },
+        designDescription: { type: 'string' },
         pages: {
-          type: ['array', 'null'],
+          type: 'array',
           items: { type: 'string' },
         },
         features: {
-          type: ['array', 'null'],
+          type: 'array',
           items: { type: 'string' },
         },
         databaseTiming: {
-          type: ['string', 'null'],
-          enum: ['now', 'after-design', null],
+          type: 'string',
+          enum: ['now', 'after-design'],
         },
       },
     },
@@ -165,7 +170,7 @@ const SENIOR_CHAT_RESPONSE_SCHEMA = {
       description: 'Optional quick reply suggestion pills for user tap.',
     },
   },
-  required: ['replyToUser', 'intent', 'interviewState', 'extractedData', 'missingItems'],
+  required: ['replyToUser', 'intent', 'interviewState'],
 };
 
 module.exports = {

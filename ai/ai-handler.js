@@ -82,6 +82,8 @@ class AIHandler {
       if (safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable()) {
         const encryptedBuffer = safeStorage.encryptString(plaintext);
         return `enc:${encryptedBuffer.toString('base64')}`;
+      } else {
+        console.warn('[AIHandler] safeStorage encryption unavailable, falling back to base64 encoding.');
       }
     } catch (err) {
       console.warn('[AIHandler] safeStorage encryption failed, using fallback base64:', err.message);
@@ -146,6 +148,9 @@ class AIHandler {
         if (cached && cached.length > 0) {
           exactModel = cached[0].id;
           this.registry.setActiveModel(activeProviderId, exactModel);
+        } else if (activeProviderId === 'google') {
+          exactModel = 'gemini-2.0-flash';
+          this.registry.setActiveModel('google', exactModel);
         } else {
           return {
             success: false,
@@ -160,6 +165,8 @@ class AIHandler {
         (signal) =>
           provider.generate({
             ...params,
+            contents: params.contents || params.prompt,
+            schema: params.schema || params.responseSchema,
             model: exactModel,
             signal,
           }),
@@ -173,6 +180,11 @@ class AIHandler {
         `[AIHandler] Model request completed for "${exactModel}":`,
         res?.success ? 'Success' : `Error (${res?.status}): ${res?.error}`
       );
+
+      if (res && res.success && res.data) {
+        res.text = res.data.text || '';
+        res.content = res.text;
+      }
 
       return res || { success: false, error: 'Empty response returned from model execution.' };
     } catch (err) {

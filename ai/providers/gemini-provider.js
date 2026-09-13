@@ -35,6 +35,31 @@ class GeminiProvider extends AIProvider {
   }
 
   /**
+   * Cleans JSON schema for Google Gemini REST API.
+   * Converts array types like ['string', 'null'] to 'string'.
+   * Removes null from enums.
+   * Recursively sanitizes properties and items.
+   */
+  sanitizeSchema(schema) {
+    if (!schema || typeof schema !== 'object') return schema;
+    const clean = Array.isArray(schema) ? [] : {};
+
+    for (const [key, value] of Object.entries(schema)) {
+      if (key === 'type' && Array.isArray(value)) {
+        const primary = value.find((t) => t && t !== 'null') || 'string';
+        clean[key] = primary;
+      } else if (key === 'enum' && Array.isArray(value)) {
+        clean[key] = value.filter((v) => v !== null && v !== undefined);
+      } else if (value && typeof value === 'object') {
+        clean[key] = this.sanitizeSchema(value);
+      } else {
+        clean[key] = value;
+      }
+    }
+    return clean;
+  }
+
+  /**
    * Normalizes contents into valid Gemini API structures.
    * Supports:
    * - String prompt
@@ -59,13 +84,14 @@ class GeminiProvider extends AIProvider {
         if (typeof turn === 'string') {
           return { role: 'user', parts: [{ text: turn }] };
         }
+        const mappedRole = turn && (turn.role === 'assistant' || turn.role === 'agent' || turn.role === 'model') ? 'model' : 'user';
         if (turn && turn.parts && Array.isArray(turn.parts)) {
-          return turn;
+          return { role: mappedRole, parts: turn.parts };
         }
         if (turn && turn.text) {
-          return { role: turn.role || 'user', parts: [{ text: turn.text }] };
+          return { role: mappedRole, parts: [{ text: turn.text }] };
         }
-        return { role: 'user', parts: [turn] };
+        return { role: mappedRole, parts: [turn] };
       });
     } else {
       normalized = [{ role: 'user', parts: [{ text: '' }] }];
@@ -239,7 +265,7 @@ class GeminiProvider extends AIProvider {
     // Structured JSON output
     if (params.schema && typeof params.schema === 'object') {
       generationConfig.responseMimeType = 'application/json';
-      generationConfig.responseSchema = params.schema;
+      generationConfig.responseSchema = this.sanitizeSchema(params.schema);
     }
 
     if (Object.keys(generationConfig).length > 0) {

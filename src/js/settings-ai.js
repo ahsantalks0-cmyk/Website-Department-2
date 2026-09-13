@@ -492,6 +492,10 @@
 
           // Auto-discover live models immediately
           await this.handleTestConnection(false);
+
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('ai-config-changed'));
+          }
         } else {
           this.showFeedback(res?.error || 'Failed to save API key.', 'error');
         }
@@ -692,6 +696,9 @@
         const res = await api.selectModel(this.activeProvider, modelId);
         if (res) {
           this.renderModelMetadata(res);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ai-config-changed'));
         }
       } catch (err) {
         console.error('[SettingsAI] handleModelSelect error:', err);
