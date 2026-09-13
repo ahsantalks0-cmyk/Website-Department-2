@@ -31,6 +31,7 @@
       "main.js",
       "preload.js",
       "index.html",
+      "agents/**/*",
       "ai/**/*",
       "core/**/*",
       "db/**/*",
@@ -61,7 +62,8 @@
     "publish": {
       "provider": "github",
       "owner": "ahsantalks0-cmyk",
-      "repo": "Website-Department-2"
+      "repo": "Website-Department-2",
+      "releaseType": "release"
     }
   },
   "dependencies": {

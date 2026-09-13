@@ -137,16 +137,18 @@ jobs:
 
           echo "BUILD_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
 
-      # Step 5: Build NSIS installer package
+      # Step 5: Build NSIS installer package & publish directly as full release
       - name: Build and package
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          EP_DRAFT: 'false'
+          EP_PRE_RELEASE: 'false'
         run: npm run dist
 
-      # Step 6: Verify and Guarantee Published Release
-      # Ensures the release is publicly published (NOT draft) and all assets (.exe, latest.yml, .blockmap) are uploaded
+      # Step 6: Verify and Guarantee Published Release (Zero Drafts, Direct Publish)
+      # Ensures the release is publicly published (NOT draft), cleans up orphan drafts, and all assets are uploaded
       - name: Verify and Publish Release Assets
         shell: bash
         env:
@@ -155,7 +157,7 @@ jobs:
         run: |
           RELEASE_TAG="v${BUILD_VERSION}"
           echo "========================================================"
-          echo "Verifying and publishing release: ${RELEASE_TAG}"
+          echo "Verifying and direct publishing release: ${RELEASE_TAG}"
           echo "========================================================"
 
           # Check output directory files
@@ -180,7 +182,6 @@ jobs:
           echo "Found primary installer: ${PRIMARY_EXE}"
 
           # 3. Ensure both hyphenated and dot-separated filename variants exist
-          # This prevents 404 errors regardless of whether electron-updater requests hyphenated or dotted URLs
           if [ -n "${PRIMARY_EXE}" ] && [ -f "${PRIMARY_EXE}" ]; then
             HYPHEN_NAME="dist/AI-Design-Department-Setup-${BUILD_VERSION}.exe"
             DOT_NAME="dist/AI.Design.Department.Setup.${BUILD_VERSION}.exe"
@@ -206,9 +207,39 @@ jobs:
           mapfile -t ASSETS < <(find dist -maxdepth 1 -type f \( -name "*.exe" -o -name "*.blockmap" -o -name "latest.yml" \))
           echo "Assets to upload: ${ASSETS[*]}"
 
-          # Ensure release exists on GitHub
+          # 5. Clean up any leftover draft releases and publish them directly
+          echo "Scanning for draft releases to direct-publish or clean up..."
+          gh api "repos/${{ github.repository }}/releases" --paginate 2>/dev/null | node -e '
+            let data = "";
+            process.stdin.on("data", c => data += c);
+            process.stdin.on("end", () => {
+              try {
+                const releases = JSON.parse(data);
+                if (Array.isArray(releases)) {
+                  for (const r of releases) {
+                    if (r.draft) {
+                      console.log(`${r.id}\t${r.tag_name || ""}`);
+                    }
+                  }
+                }
+              } catch(e) {}
+            });
+          ' | while IFS=$'\t' read -r DRAFT_ID DRAFT_TAG; do
+            if [ -n "$DRAFT_ID" ]; then
+              echo "Processing draft ID: $DRAFT_ID (Tag: $DRAFT_TAG)"
+              if [ -n "$DRAFT_TAG" ]; then
+                echo "Directly publishing draft release $DRAFT_TAG..."
+                gh api -X PATCH "repos/${{ github.repository }}/releases/$DRAFT_ID" -F draft=false -F prerelease=false || true
+              else
+                echo "Deleting untagged orphan draft release ID $DRAFT_ID..."
+                gh api -X DELETE "repos/${{ github.repository }}/releases/$DRAFT_ID" || true
+              fi
+            fi
+          done
+
+          # 6. Ensure release exists on GitHub as a direct published release
           if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Creating release ${RELEASE_TAG} on GitHub..."
+            echo "Creating direct published release ${RELEASE_TAG} on GitHub..."
             gh release create "${RELEASE_TAG}" \
               --title "AI Design Department ${RELEASE_TAG}" \
               --notes "AI Design Department desktop release ${RELEASE_TAG}" \
@@ -220,8 +251,8 @@ jobs:
             gh release upload "${RELEASE_TAG}" "${ASSETS[@]}" --clobber || true
           fi
 
-          # Guarantee that the release is NOT a draft
-          echo "Publishing release (draft=false)..."
+          # Guarantee that the release is published directly (NOT a draft)
+          echo "Confirming release is fully published (draft=false)..."
           gh release edit "${RELEASE_TAG}" --draft=false --prerelease=false || true
 
           # Retroactive compatibility patch for v1.0.8:
