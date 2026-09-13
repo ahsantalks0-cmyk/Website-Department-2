@@ -912,8 +912,14 @@
     } else if (tabKey === 'projects' && window.ProjectsController) {
       window.ProjectsController.load();
     } else if (tabKey === 'settings' && window.SettingsAIController) {
-      window.SettingsAIController.refreshStatus();
-      window.SettingsAIController.loadUsageStats();
+      if (typeof window.SettingsAIController.refreshStatus === 'function') {
+        window.SettingsAIController.refreshStatus();
+      } else if (typeof window.SettingsAIController.loadActiveConfiguration === 'function') {
+        window.SettingsAIController.loadActiveConfiguration();
+      }
+      if (typeof window.SettingsAIController.loadUsageStats === 'function') {
+        window.SettingsAIController.loadUsageStats();
+      }
     }
   }
 

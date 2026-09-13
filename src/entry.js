@@ -1,8 +1,11 @@
 import './styles/main.css';
 import './js/theme.js';
+import './js/chat.js';
 import './js/app.js';
 import './js/dashboard.js';
+import './js/dashboard-tasks.js';
 import './js/projects.js';
+import './js/project-detail.js';
 import './js/updater-ui.js';
 import './js/settings-ai.js';
 
@@ -12,8 +15,11 @@ function initializeControllers() {
     if (window.ThemeManager && typeof window.ThemeManager.getStoredTheme === 'function') {
       window.ThemeManager.setTheme(window.ThemeManager.getStoredTheme());
     }
+    if (window.ChatController && typeof window.ChatController.load === 'function') {
+      window.ChatController.load();
+    }
     if (window.AppNavigator && typeof window.AppNavigator.navigateTo === 'function') {
-      window.AppNavigator.navigateTo(window.AppNavigator.getActiveTab() || 'dashboard');
+      window.AppNavigator.navigateTo(window.AppNavigator.getActiveTab() || 'chat');
     }
     if (window.DashboardController && typeof window.DashboardController.refresh === 'function') {
       window.DashboardController.refresh();

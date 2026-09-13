@@ -324,6 +324,21 @@
     }
 
     /**
+     * Refreshes active provider configuration, model routes, and usage statistics.
+     */
+    async refreshStatus() {
+      if (!this.dom || Object.keys(this.dom).length === 0) {
+        this.bindElements();
+      }
+      await this.loadActiveConfiguration().catch((err) => {
+        console.error('[SettingsAI] refreshStatus error in loadActiveConfiguration:', err);
+      });
+      await this.loadUsageStats().catch((err) => {
+        console.error('[SettingsAI] refreshStatus error in loadUsageStats:', err);
+      });
+    }
+
+    /**
      * Loads the initial active configuration from the Main Process.
      */
     async loadActiveConfiguration() {
