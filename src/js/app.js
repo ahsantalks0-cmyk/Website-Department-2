@@ -292,15 +292,368 @@
     }
   };
 
+  const STORAGE_KEY_STORE_PREFIX = 'aidepartment_store_proj_';
+
+  const mockStoreApi = {
+    async getProjects() {
+      const list = getStored(STORAGE_KEY_PROJECTS, []);
+      return { success: true, data: list.sort((a, b) => b.id - a.id) };
+    },
+    async getProject(projectId) {
+      const list = getStored(STORAGE_KEY_PROJECTS, []);
+      const proj = list.find((p) => String(p.id) === String(projectId));
+      if (!proj) return { success: false, error: 'Project not found' };
+
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      let data = getStored(storeKey, null);
+      if (!data) {
+        data = {
+          project: proj,
+          brief: {
+            projectId: proj.id,
+            projectName: proj.name,
+            projectType: proj.type || proj.project_type || 'website',
+            userRequirements: proj.description || 'Production desktop interface specification.',
+            targetAudience: 'Product engineers and interface designers',
+            targetDevices: ['desktop'],
+            coreFeatures: ['Navigation', 'Workspace Grid', 'Telemetry Dashboard'],
+            createdAt: proj.created_at || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          seed: {
+            projectId: proj.id,
+            brandArchetype: 'Modernist Tech Architecture',
+            colorPersonality: 'Monochrome slate with electric international blue accents',
+            density: 'balanced',
+            contrast: 'high',
+            designPrinciples: [
+              'Direct tactile feedback on all input states',
+              'Surgical typographic hierarchy with mathematical line scales',
+              'Consistent 8pt spatial grid with generous border gutters',
+            ],
+            createdAt: new Date().toISOString(),
+          },
+          tokens: {
+            projectId: proj.id,
+            version: 1,
+            colors: {
+              primary: '#0071E3',
+              secondary: '#6E6E73',
+              accent: '#0A84FF',
+              background: '#FAFAFA',
+              surface: '#FFFFFF',
+              text: '#1D1D1F',
+              muted: '#86868B',
+              border: '#E5E5EA',
+            },
+            typography: {
+              displayFont: 'Outfit',
+              bodyFont: 'Outfit',
+              scale: { h1: '32px', h2: '24px', h3: '18px', body: '14px', small: '12px' },
+            },
+            spacing: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px' },
+            radius: { sm: '6px', md: '10px', lg: '16px' },
+            motion: { duration: '200ms', easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+            versions: [
+              {
+                version: 1,
+                reason: 'Initial token baseline generation',
+                timestamp: new Date().toISOString(),
+                snapshot: { primary: '#0071E3', background: '#FAFAFA' },
+              },
+            ],
+          },
+          pages: {
+            projectId: proj.id,
+            pages: [
+              { pageId: 'page-home', name: 'Home', order: 0, status: 'approved', lastReviewedAt: new Date().toISOString() },
+              { pageId: 'page-dashboard', name: 'Dashboard', order: 1, status: 'designing', lastReviewedAt: null },
+              { pageId: 'page-settings', name: 'Settings', order: 2, status: 'pending', lastReviewedAt: null },
+            ],
+          },
+          reviewLog: {
+            projectId: proj.id,
+            entries: [
+              {
+                id: 'rev-1',
+                pageId: 'page-home',
+                userVerdict: 'approved',
+                userInstructions: 'Hero banner typography looks refined. Spacing matches Apple HIG guidelines.',
+                appliedActions: ['Adjusted H1 letter tracking to -0.02em', 'Aligned primary action button padding'],
+                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+              },
+            ],
+          },
+          decisions: {
+            projectId: proj.id,
+            entries: [
+              {
+                id: 'dec-1',
+                scope: 'global',
+                decision: 'Adopt Outfit typeface paired with strict 8pt spatial rhythmic scales across all views',
+                reason: 'Guarantees typographic clarity and scannability on dense Retina desktop displays',
+                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+              },
+            ],
+          },
+          assets: {
+            projectId: proj.id,
+            items: [],
+          },
+        };
+        setStored(storeKey, data);
+      }
+      return { success: true, data };
+    },
+    async createProject(payload) {
+      const dbRes = await mockDbApi.projects.create({
+        name: payload.name,
+        project_type: payload.type || 'website',
+        description: payload.description || '',
+      });
+      if (!dbRes.success) return dbRes;
+      const proj = dbRes.data;
+      const pagesList = Array.isArray(payload.pages) && payload.pages.length > 0
+        ? payload.pages.map((pName, i) => ({
+            pageId: `page-${pName.toLowerCase().replace(/[^a-z0-9]+/g, '-') || i}`,
+            name: pName,
+            order: i,
+            status: i === 0 ? 'designing' : 'pending',
+            lastReviewedAt: null,
+          }))
+        : [{ pageId: 'page-home', name: 'Home', order: 0, status: 'pending', lastReviewedAt: null }];
+
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${proj.id}`;
+      const storeData = {
+        project: { ...proj, type: payload.type || 'website', folder_path: `projects/${proj.id}` },
+        brief: {
+          projectId: proj.id,
+          projectName: proj.name,
+          projectType: payload.type || 'website',
+          userRequirements: payload.description || '',
+          targetAudience: 'Desktop and Web Users',
+          targetDevices: ['desktop'],
+          coreFeatures: pagesList.map((p) => p.name),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        seed: {
+          projectId: proj.id,
+          brandArchetype: 'Modernist Tech Architecture',
+          colorPersonality: 'Monochrome slate with electric international blue accents',
+          density: 'balanced',
+          contrast: 'high',
+          designPrinciples: ['Direct tactile feedback', 'Clear typographic hierarchy', '8pt layout grid'],
+          createdAt: new Date().toISOString(),
+        },
+        tokens: {
+          projectId: proj.id,
+          version: 1,
+          colors: {
+            primary: '#0071E3',
+            secondary: '#6E6E73',
+            accent: '#0A84FF',
+            background: '#FAFAFA',
+            surface: '#FFFFFF',
+            text: '#1D1D1F',
+            muted: '#86868B',
+            border: '#E5E5EA',
+          },
+          typography: {
+            displayFont: 'Outfit',
+            bodyFont: 'Outfit',
+            scale: { h1: '32px', h2: '24px', h3: '18px', body: '14px', small: '12px' },
+          },
+          spacing: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px' },
+          radius: { sm: '6px', md: '10px', lg: '16px' },
+          motion: { duration: '200ms', easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+          versions: [
+            {
+              version: 1,
+              reason: 'Initial token baseline generation',
+              timestamp: new Date().toISOString(),
+              snapshot: { primary: '#0071E3', background: '#FAFAFA' },
+            },
+          ],
+        },
+        pages: {
+          projectId: proj.id,
+          pages: pagesList,
+        },
+        reviewLog: { projectId: proj.id, entries: [] },
+        decisions: {
+          projectId: proj.id,
+          entries: [
+            {
+              id: 'dec-1',
+              scope: 'global',
+              decision: `Project ${proj.name} initialized with ${pagesList.length} pages specification.`,
+              reason: 'Initial architectural baseline established.',
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        },
+        assets: { projectId: proj.id, items: [] },
+      };
+      setStored(storeKey, storeData);
+      return { success: true, data: proj };
+    },
+    async updateTokens(projectId, changes, reason) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const nextVersion = (data.tokens.version || 1) + 1;
+      if (changes.colors) data.tokens.colors = { ...data.tokens.colors, ...changes.colors };
+      if (changes.typography) data.tokens.typography = { ...data.tokens.typography, ...changes.typography };
+      data.tokens.version = nextVersion;
+      data.tokens.versions = data.tokens.versions || [];
+      data.tokens.versions.push({
+        version: nextVersion,
+        reason: reason || 'Updated tokens',
+        timestamp: new Date().toISOString(),
+        snapshot: { ...data.tokens.colors },
+      });
+      setStored(storeKey, data);
+      return { success: true, data: data.tokens };
+    },
+    async addPage(projectId, page) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const pageId = `page-${page.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || Date.now()}`;
+      const newPage = {
+        pageId,
+        name: page.name,
+        order: data.pages.pages.length,
+        status: 'pending',
+        lastReviewedAt: null,
+      };
+      data.pages.pages.push(newPage);
+      setStored(storeKey, data);
+      return { success: true, data: newPage };
+    },
+    async updatePageStatus(projectId, pageId, status) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const p = data.pages.pages.find((item) => item.pageId === pageId);
+      if (!p) return { success: false, error: 'Page not found' };
+      p.status = status;
+      if (status === 'approved') p.lastReviewedAt = new Date().toISOString();
+      setStored(storeKey, data);
+      return { success: true, data: p };
+    },
+    async reorderPages(projectId, pageIds) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const map = new Map(data.pages.pages.map((p) => [p.pageId, p]));
+      const reordered = [];
+      pageIds.forEach((id, idx) => {
+        const p = map.get(id);
+        if (p) {
+          p.order = idx;
+          reordered.push(p);
+        }
+      });
+      data.pages.pages = reordered;
+      setStored(storeKey, data);
+      return { success: true, data: data.pages };
+    },
+    async removePage(projectId, pageId) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      data.pages.pages = data.pages.pages.filter((p) => p.pageId !== pageId);
+      data.pages.pages.forEach((p, idx) => (p.order = idx));
+      setStored(storeKey, data);
+      return { success: true, data: data.pages };
+    },
+    async logReview(projectId, entry) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const newEntry = {
+        id: `rev-${Date.now()}`,
+        pageId: entry.pageId || 'global',
+        userVerdict: entry.verdict || 'approved',
+        userInstructions: entry.instructions || '',
+        appliedActions: entry.actions || [],
+        timestamp: new Date().toISOString(),
+      };
+      data.reviewLog.entries.push(newEntry);
+      setStored(storeKey, data);
+      return { success: true, data: newEntry };
+    },
+    async logDecision(projectId, entry) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const newEntry = {
+        id: `dec-${Date.now()}`,
+        scope: entry.scope || 'global',
+        decision: entry.decision || '',
+        reason: entry.reason || '',
+        timestamp: new Date().toISOString(),
+      };
+      data.decisions.entries.push(newEntry);
+      setStored(storeKey, data);
+      return { success: true, data: newEntry };
+    },
+    async generateSeedPlaceholder(projectId) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      data.seed = {
+        projectId,
+        brandArchetype: 'Editorial Minimalism',
+        colorPersonality: 'Oatmeal canvas with deep espresso typography and vermillion micro-accents',
+        density: 'compact',
+        contrast: 'maximum',
+        designPrinciples: [
+          'High density information architecture',
+          'Monospaced numerical indicators for tabular data',
+          'Tactile inset shadows on actionable toggles',
+        ],
+        createdAt: new Date().toISOString(),
+      };
+      setStored(storeKey, data);
+      return { success: true, data: data.seed };
+    },
+    async deleteProject(projectId) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      localStorage.removeItem(storeKey);
+      return mockDbApi.projects.delete(projectId);
+    },
+    async exportProject(projectId) {
+      const storeKey = `${STORAGE_KEY_STORE_PREFIX}${projectId}`;
+      const data = getStored(storeKey, null);
+      if (!data) return { success: false, error: 'Project not found' };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `project-${projectId}-knowledge.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return { success: true, data: { path: `project-${projectId}-knowledge.json` } };
+    },
+    async importProject() {
+      return { success: false, error: 'Native zip import requires Electron runtime environment.' };
+    },
+  };
+
   const shim = {
     getAppVersion: async () => '1.0.4',
     db: mockDbApi,
     ai: mockAiApi,
+    store: mockStoreApi,
     updater: null,
   };
 
   window.api = window.api || shim;
   window.electronAPI = window.electronAPI || shim;
+  window.store = window.store || mockStoreApi;
 })();
 
 (function () {
@@ -314,6 +667,11 @@
       id: 'view-projects',
       title: 'Projects',
       subtitle: 'AI Canvas & Generated Interfaces',
+    },
+    'project-detail': {
+      id: 'view-project-detail',
+      title: 'Project Knowledge Store',
+      subtitle: 'Single Source of Truth & Document Specifications',
     },
     settings: {
       id: 'view-settings',

@@ -203,6 +203,27 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 5,
+    name: '005_project_knowledge_store',
+    up: (db) => {
+      const pragmaCols = db.prepare('PRAGMA table_info(projects)').all();
+      const colNames = pragmaCols.map((c) => c.name);
+
+      if (!colNames.includes('folder_path')) {
+        db.exec('ALTER TABLE projects ADD COLUMN folder_path TEXT;');
+      }
+      if (!colNames.includes('type')) {
+        db.exec("ALTER TABLE projects ADD COLUMN type TEXT DEFAULT 'website';");
+      }
+
+      db.exec(`
+        UPDATE projects
+        SET type = COALESCE(type, project_type, 'website')
+        WHERE type IS NULL;
+      `);
+    },
+  },
 ];
 
 module.exports = {

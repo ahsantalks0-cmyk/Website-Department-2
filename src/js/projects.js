@@ -3,16 +3,26 @@
  * AI DESIGN DEPARTMENT — PROJECTS CONTROLLER (projects.js)
  * ==============================================================================
  * Handles:
- * - Real-time listing of SQLite projects in a responsive Apple-style card grid
- * - Instant creation via modal dialog without full-page reloads
- * - Project deletion with double-confirmation dialog & cascading removal
- * - Empty state transitions and dynamic counts
+ * - Real-time listing of projects in a responsive Apple-style card grid
+ * - Project creation via modal dialog with dynamic multi-page tag input
+ * - Project deletion with double-confirmation dialog
+ * - Project export / import archive triggers
+ * - Direct navigation to Project Detail view upon card selection
  * ==============================================================================
  */
 
 (function () {
   let activeProjects = [];
   let pendingDeleteProject = null;
+  let pendingDeleteCallback = null;
+  let newProjectPages = ['Home']; // default initial page
+
+  function getStoreApi() {
+    if (window.store) return window.store;
+    if (window.api && window.api.store) return window.api.store;
+    if (window.electronAPI && window.electronAPI.store) return window.electronAPI.store;
+    return null;
+  }
 
   function getDbApi() {
     if (window.api && window.api.db) return window.api.db;
@@ -47,10 +57,14 @@
 
   function formatTypeLabel(type) {
     switch (type) {
+      case 'saas-dashboard':
       case 'saas_dashboard':
         return 'SaaS Dashboard';
+      case 'ui-only':
       case 'ui_only':
         return 'UI Only';
+      case 'custom':
+        return 'Custom';
       case 'website':
       default:
         return 'Website';
@@ -59,10 +73,14 @@
 
   function getTypeBadgeClass(type) {
     switch (type) {
+      case 'saas-dashboard':
       case 'saas_dashboard':
         return 'badge-type-saas';
+      case 'ui-only':
       case 'ui_only':
         return 'badge-type-ui';
+      case 'custom':
+        return 'badge-type-custom';
       case 'website':
       default:
         return 'badge-type-website';
@@ -70,25 +88,40 @@
   }
 
   /**
-   * Fetches all projects from the database and renders the grid.
+   * Fetches all projects and renders the grid.
    */
   async function loadProjects() {
+    const store = getStoreApi();
     const db = getDbApi();
-    if (!db) return;
 
     const gridContainer = document.getElementById('projects-grid');
     const emptyState = document.getElementById('projects-empty-state');
     const countBadge = document.getElementById('projects-count-badge');
+    const counterText = document.getElementById('projects-counter-text');
 
     try {
-      const res = await db.projects.list();
-      const projects = (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+      let projects = [];
+      if (store && typeof store.getProjects === 'function') {
+        const res = await store.getProjects();
+        if (res && res.success && Array.isArray(res.data)) {
+          projects = res.data;
+        } else if (Array.isArray(res)) {
+          projects = res;
+        }
+      } else if (db && db.projects) {
+        const res = await db.projects.list();
+        projects = (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+      }
+
       activeProjects = projects;
 
       // Update badge count
       if (countBadge) {
         countBadge.textContent = projects.length;
         countBadge.style.display = projects.length > 0 ? 'inline-flex' : 'none';
+      }
+      if (counterText) {
+        counterText.textContent = `${projects.length} Knowledge Store Repositories`;
       }
 
       if (!projects || projects.length === 0) {
@@ -111,18 +144,18 @@
    * Generates the HTML for an individual project card.
    */
   function renderProjectCard(proj) {
-    const typeLabel = formatTypeLabel(proj.project_type);
-    const badgeClass = getTypeBadgeClass(proj.project_type);
-    const dateLabel = formatDate(proj.created_at);
+    const typeLabel = formatTypeLabel(proj.type || proj.project_type);
+    const badgeClass = getTypeBadgeClass(proj.type || proj.project_type);
+    const dateLabel = formatDate(proj.updated_at || proj.created_at);
     const desc = proj.description && proj.description.trim()
       ? escapeHtml(proj.description.trim())
       : '<span class="project-desc-empty">No description provided</span>';
 
-    const pageCount = proj.page_count !== undefined ? proj.page_count : 0;
+    const pageCount = proj.page_count !== undefined ? proj.page_count : (proj.pages_count || 1);
     const pageCountLabel = pageCount === 1 ? '1 Page' : `${pageCount} Pages`;
 
     return `
-      <div class="card project-card" data-id="${proj.id}" id="project-card-${proj.id}">
+      <div class="card project-card" data-id="${proj.id}" id="project-card-${proj.id}" tabindex="0" role="button" aria-label="Open project ${escapeHtml(proj.name)}">
         <div class="project-card-header">
           <div class="project-title-group">
             <h3 class="project-card-title" title="${escapeHtml(proj.name)}">${escapeHtml(proj.name)}</h3>
@@ -145,7 +178,7 @@
         <div class="project-card-footer">
           <div class="project-status-indicator">
             <span class="status-indicator-dot status-${proj.status || 'active'}"></span>
-            <span class="project-status-text">${proj.status === 'active' ? 'Active' : proj.status}</span>
+            <span class="project-status-text">${proj.status === 'active' ? 'Active' : (proj.status || 'Draft')}</span>
           </div>
           <div class="project-meta-right">
             <span class="project-pages-pill">${pageCountLabel}</span>
@@ -157,17 +190,83 @@
   }
 
   function attachCardListeners() {
+    // Card clicks -> open detail
+    const cards = document.querySelectorAll('.project-card');
+    cards.forEach((card) => {
+      card.addEventListener('click', (e) => {
+        // If delete button clicked, ignore card click
+        if (e.target.closest('.btn-delete-project')) return;
+        const id = card.getAttribute('data-id');
+        if (id && window.ProjectDetailController) {
+          window.ProjectDetailController.open(id);
+        }
+      });
+
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (e.target.closest('.btn-delete-project')) return;
+          const id = card.getAttribute('data-id');
+          if (id && window.ProjectDetailController) {
+            window.ProjectDetailController.open(id);
+          }
+        }
+      });
+    });
+
+    // Delete buttons
     const deleteButtons = document.querySelectorAll('.btn-delete-project');
     deleteButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const id = parseInt(btn.getAttribute('data-id'), 10);
-        const target = activeProjects.find((p) => p.id === id);
+        const id = btn.getAttribute('data-id');
+        const target = activeProjects.find((p) => String(p.id) === String(id));
         if (target) {
           openDeleteModal(target);
         }
       });
     });
+  }
+
+  /**
+   * Render the chips for pages in New Project modal
+   */
+  function renderPageChips() {
+    const container = document.getElementById('project-pages-tags-container');
+    if (!container) return;
+
+    if (newProjectPages.length === 0) {
+      container.innerHTML = '<span class="form-hint" style="margin: 0; font-size: 12px;">Add at least one page (e.g. Home)</span>';
+      return;
+    }
+
+    container.innerHTML = newProjectPages.map((pageName, idx) => `
+      <span class="page-tag-chip">
+        <span>${escapeHtml(pageName)}</span>
+        <button type="button" class="page-tag-remove-btn" data-index="${idx}" aria-label="Remove ${escapeHtml(pageName)}">&times;</button>
+      </span>
+    `).join('');
+
+    const removeBtns = container.querySelectorAll('.page-tag-remove-btn');
+    removeBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const index = parseInt(btn.getAttribute('data-index'), 10);
+        newProjectPages.splice(index, 1);
+        renderPageChips();
+      });
+    });
+  }
+
+  function addPageFromInput() {
+    const input = document.getElementById('project-page-add-input');
+    if (!input) return;
+    const name = input.value.trim();
+    if (name && !newProjectPages.includes(name)) {
+      newProjectPages.push(name);
+      input.value = '';
+      renderPageChips();
+    }
+    input.focus();
   }
 
   /**
@@ -178,8 +277,14 @@
     const form = document.getElementById('new-project-form');
     const errorAlert = document.getElementById('new-project-error');
     const nameInput = document.getElementById('project-name-input');
+    const pageInput = document.getElementById('project-page-add-input');
+
+    newProjectPages = ['Home']; // reset to default page
 
     if (form) form.reset();
+    if (pageInput) pageInput.value = '';
+    renderPageChips();
+
     if (errorAlert) {
       errorAlert.style.display = 'none';
       errorAlert.textContent = '';
@@ -203,8 +308,8 @@
 
   async function handleCreateProjectSubmit(e) {
     e.preventDefault();
+    const store = getStoreApi();
     const db = getDbApi();
-    if (!db) return;
 
     const nameInput = document.getElementById('project-name-input');
     const typeSelect = document.getElementById('project-type-select');
@@ -213,8 +318,9 @@
     const submitBtn = document.getElementById('btn-submit-project');
 
     const name = nameInput ? nameInput.value.trim() : '';
-    const project_type = typeSelect ? typeSelect.value : 'website';
+    const type = typeSelect ? typeSelect.value : 'website';
     const description = descInput ? descInput.value.trim() : '';
+    const pages = newProjectPages.length > 0 ? newProjectPages : ['Home'];
 
     if (!name) {
       if (errorAlert) {
@@ -231,18 +337,32 @@
         submitBtn.textContent = 'Creating...';
       }
 
-      const res = await db.projects.create({
-        name,
-        project_type,
-        description,
-      });
+      let res;
+      if (store && typeof store.createProject === 'function') {
+        res = await store.createProject({
+          name,
+          type,
+          description,
+          pages,
+        });
+      } else if (db && db.projects) {
+        res = await db.projects.create({
+          name,
+          project_type: type,
+          description,
+        });
+      }
 
       if (res && res.success && res.data) {
         closeNewProjectModal();
-        // Immediately reload list and refresh dashboard stats
         await loadProjects();
         if (window.DashboardController) {
           window.DashboardController.refresh();
+        }
+        // Open newly created project in detail view
+        const createdId = res.data.id || (res.data.project && res.data.project.id);
+        if (createdId && window.ProjectDetailController) {
+          window.ProjectDetailController.open(createdId);
         }
       } else {
         const errorMsg = (res && res.error) ? res.error : 'Failed to create project.';
@@ -268,8 +388,9 @@
   /**
    * Modal: Delete Project Confirmation
    */
-  function openDeleteModal(project) {
+  function openDeleteModal(project, callback) {
     pendingDeleteProject = project;
+    pendingDeleteCallback = callback || null;
     const modal = document.getElementById('delete-confirm-modal');
     const nameSpan = document.getElementById('delete-project-target-name');
 
@@ -284,6 +405,7 @@
 
   function closeDeleteModal() {
     pendingDeleteProject = null;
+    pendingDeleteCallback = null;
     const modal = document.getElementById('delete-confirm-modal');
     if (modal) {
       modal.classList.remove('active');
@@ -293,11 +415,12 @@
 
   async function handleConfirmDelete() {
     if (!pendingDeleteProject) return;
+    const store = getStoreApi();
     const db = getDbApi();
-    if (!db) return;
 
     const deleteBtn = document.getElementById('btn-confirm-delete-project');
     const projectId = pendingDeleteProject.id;
+    const cb = pendingDeleteCallback;
 
     try {
       if (deleteBtn) {
@@ -305,12 +428,21 @@
         deleteBtn.textContent = 'Deleting...';
       }
 
-      const res = await db.projects.delete(projectId);
+      let res;
+      if (store && typeof store.deleteProject === 'function') {
+        res = await store.deleteProject(projectId);
+      } else if (db && db.projects) {
+        res = await db.projects.delete(projectId);
+      }
+
       if (res && res.success) {
         closeDeleteModal();
         await loadProjects();
         if (window.DashboardController) {
           window.DashboardController.refresh();
+        }
+        if (typeof cb === 'function') {
+          cb();
         }
       } else {
         console.error('[Projects] Failed to delete project:', res?.error);
@@ -327,10 +459,41 @@
     }
   }
 
+  /**
+   * Trigger Import Project ZIP
+   */
+  async function handleImportProject() {
+    const store = getStoreApi();
+    if (!store || typeof store.importProject !== 'function') {
+      alert('Import feature requires active Knowledge Store subsystem');
+      return;
+    }
+
+    try {
+      const res = await store.importProject();
+      if (res && res.success && res.data) {
+        await loadProjects();
+        if (window.DashboardController) {
+          window.DashboardController.refresh();
+        }
+        if (res.data.id && window.ProjectDetailController) {
+          window.ProjectDetailController.open(res.data.id);
+        }
+      } else if (!res.cancelled) {
+        alert(res?.error || 'Failed to import project');
+      }
+    } catch (err) {
+      console.error('[Projects] Import error:', err);
+      alert(err.message);
+    }
+  }
+
   window.ProjectsController = {
     load: loadProjects,
     openNewModal: openNewProjectModal,
     closeNewModal: closeNewProjectModal,
+    openDeleteModal: openDeleteModal,
+    importProject: handleImportProject,
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -346,6 +509,23 @@
     if (closeBtn) closeBtn.addEventListener('click', closeNewProjectModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeNewProjectModal);
     if (form) form.addEventListener('submit', handleCreateProjectSubmit);
+
+    // Import button in toolbar
+    const importBtn = document.getElementById('btn-import-project');
+    if (importBtn) importBtn.addEventListener('click', handleImportProject);
+
+    // Page Add button inside New Project modal
+    const addPageBtn = document.getElementById('btn-add-page-to-new-project');
+    const pageInput = document.getElementById('project-page-add-input');
+    if (addPageBtn) addPageBtn.addEventListener('click', addPageFromInput);
+    if (pageInput) {
+      pageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addPageFromInput();
+        }
+      });
+    }
 
     // Delete modal triggers
     const cancelDeleteBtn = document.getElementById('btn-cancel-delete');

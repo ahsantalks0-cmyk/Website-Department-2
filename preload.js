@@ -276,17 +276,41 @@ const orchestratorBridge = {
   },
 };
 
-// Expose exact `window.ai` and `window.orchestrator` namespaces required by renderer
+/**
+ * Phase 5: Knowledge Store Bridge
+ */
+const storeBridge = {
+  createProject: (data) => ipcRenderer.invoke('store:createProject', data),
+  getProjects: () => ipcRenderer.invoke('store:getProjects'),
+  getProject: (projectId) => ipcRenderer.invoke('store:getProject', projectId),
+  updateBrief: (projectId, partial) => ipcRenderer.invoke('store:updateBrief', { projectId, partial }),
+  generateSeedPlaceholder: (projectId) => ipcRenderer.invoke('store:generateSeedPlaceholder', projectId),
+  updateTokens: (projectId, changes, reason) => ipcRenderer.invoke('store:updateTokens', { projectId, changes, reason }),
+  addPage: (projectId, page) => ipcRenderer.invoke('store:addPage', { projectId, page }),
+  updatePageStatus: (projectId, pageId, status) => ipcRenderer.invoke('store:updatePageStatus', { projectId, pageId, status }),
+  reorderPages: (projectId, pageIds) => ipcRenderer.invoke('store:reorderPages', { projectId, pageIds }),
+  removePage: (projectId, pageId) => ipcRenderer.invoke('store:removePage', { projectId, pageId }),
+  logReview: (projectId, entry) => ipcRenderer.invoke('store:logReview', { projectId, entry }),
+  logDecision: (projectId, entry) => ipcRenderer.invoke('store:logDecision', { projectId, entry }),
+  query: (projectId, documentType) => ipcRenderer.invoke('store:query', { projectId, documentType }),
+  deleteProject: (projectId) => ipcRenderer.invoke('store:deleteProject', projectId),
+  exportProject: (projectId, targetPath) => ipcRenderer.invoke('store:exportProject', { projectId, targetPath }),
+  importProject: (zipPath) => ipcRenderer.invoke('store:importProject', zipPath),
+};
+
+// Expose exact `window.ai`, `window.orchestrator`, and `window.store` namespaces
 contextBridge.exposeInMainWorld('ai', aiBridge);
 contextBridge.exposeInMainWorld('orchestrator', orchestratorBridge);
+contextBridge.exposeInMainWorld('store', storeBridge);
 
 // Expose on both `window.api` and `window.electronAPI` for developer ergonomics and backward compatibility
 const fullBridge = {
   ...apiBridge,
   ai: aiBridge,
   orchestrator: orchestratorBridge,
+  store: storeBridge,
 };
 
 contextBridge.exposeInMainWorld('api', fullBridge);
 contextBridge.exposeInMainWorld('electronAPI', fullBridge);
-console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.api, and window.electronAPI');
+console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.store, window.api, and window.electronAPI');

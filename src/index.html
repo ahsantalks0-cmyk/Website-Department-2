@@ -302,9 +302,17 @@
           <div class="projects-toolbar">
             <div class="projects-toolbar-left">
               <h2 class="projects-view-title">Project Workspaces</h2>
-              <span class="projects-counter-pill" id="projects-counter-text">Local SQLite Repositories</span>
+              <span class="projects-counter-pill" id="projects-counter-text">Knowledge Store Repositories</span>
             </div>
             <div class="projects-toolbar-right">
+              <button class="btn btn-secondary" id="btn-import-project" title="Import a project ZIP package into the Knowledge Store">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>Import ZIP</span>
+              </button>
               <button class="btn btn-primary" id="btn-open-new-project">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -338,6 +346,15 @@
 
           <!-- Dynamic Projects Grid -->
           <div class="projects-grid" id="projects-grid"></div>
+        </section>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 2B: PROJECT DETAIL (Phase 5 Knowledge Store Inspector)       -->
+        <!-- ================================================================ -->
+        <section class="view-pane" id="view-project-detail" aria-labelledby="current-page-title">
+          <div class="pdetail-container" id="project-detail-content">
+            <!-- Dynamically populated by project-detail.js -->
+          </div>
         </section>
 
         <!-- ================================================================ -->
@@ -699,14 +716,25 @@
           <label class="form-label" for="project-type-select">Project Type</label>
           <select id="project-type-select" class="form-select">
             <option value="website">Website</option>
-            <option value="saas_dashboard">SaaS Dashboard</option>
-            <option value="ui_only">UI Only</option>
+            <option value="saas-dashboard">SaaS Dashboard</option>
+            <option value="ui-only">UI Only</option>
+            <option value="custom">Custom</option>
           </select>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="project-desc-input">Description <span class="form-optional">(Optional)</span></label>
-          <textarea id="project-desc-input" class="form-textarea" rows="3" placeholder="Brief project summary, design intentions, or variety requirements..."></textarea>
+          <textarea id="project-desc-input" class="form-textarea" rows="2" placeholder="Brief project summary, design intentions, or variety requirements..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Project Pages <span class="form-optional">(Multi-page specification)</span></label>
+          <div class="page-tags-input-group">
+            <input type="text" id="project-page-add-input" class="form-input" placeholder="e.g. Home, Pricing, Dashboard, Settings" autocomplete="off">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-page-to-new-project">+ Add</button>
+          </div>
+          <div class="page-tags-container" id="project-pages-tags-container"></div>
+          <span class="form-hint">Add pages one by one. Future agents will generate pages in this sequence.</span>
         </div>
 
         <div class="modal-footer">
@@ -812,11 +840,166 @@
     </div>
   </div>
 
+  <!-- ====================================================================== -->
+  <!-- PHASE 5 KNOWLEDGE STORE MODALS                                         -->
+  <!-- ====================================================================== -->
+
+  <!-- Modal: Add Page -->
+  <div class="modal-backdrop pdetail-modal" id="pdetail-add-page-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-sm">
+      <div class="modal-header">
+        <h2 class="modal-title">Add Page to Project</h2>
+        <button class="modal-close-btn pdetail-modal-close" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="pdetail-add-page-form">
+        <div class="form-group">
+          <label class="form-label" for="new-page-name-input">Page Name <span class="required-star">*</span></label>
+          <input type="text" id="new-page-name-input" class="form-input" placeholder="e.g. Pricing, Dashboard, Analytics" required autocomplete="off">
+          <span class="form-hint">New pages are initialized in 'pending' status for subsequent agent implementation.</span>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary pdetail-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Page</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Update Design Tokens -->
+  <div class="modal-backdrop pdetail-modal" id="pdetail-update-tokens-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">Update Design Tokens</h2>
+        <button class="modal-close-btn pdetail-modal-close" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="pdetail-update-tokens-form">
+        <div class="pdetail-modal-desc">
+          Updates generate a permanent new token version snapshot. Every change requires an architectural justification.
+        </div>
+        <div class="token-edit-grid">
+          <div class="form-group">
+            <label class="form-label" for="token-edit-primary">Primary Color</label>
+            <div class="token-color-picker-row">
+              <input type="text" id="token-edit-primary" class="form-input" value="#0071E3" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="token-edit-accent">Accent Color</label>
+            <div class="token-color-picker-row">
+              <input type="text" id="token-edit-accent" class="form-input" value="#0A84FF" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="token-edit-bg">Background Color</label>
+            <div class="token-color-picker-row">
+              <input type="text" id="token-edit-bg" class="form-input" value="#FAFAFA" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="token-edit-text">Text Color</label>
+            <div class="token-color-picker-row">
+              <input type="text" id="token-edit-text" class="form-input" value="#1D1D1F" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label" for="token-edit-reason">Reason for Token Update <span class="required-star">*</span></label>
+          <input type="text" id="token-edit-reason" class="form-input" placeholder="e.g. Higher contrast on secondary action buttons" required autocomplete="off">
+          <span class="form-hint">Stored in the version history log for downstream agent context.</span>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary pdetail-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Commit Token Version</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Review Log -->
+  <div class="modal-backdrop pdetail-modal" id="pdetail-add-review-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">Log User Review</h2>
+        <button class="modal-close-btn pdetail-modal-close" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="pdetail-add-review-form">
+        <div class="form-group">
+          <label class="form-label" for="review-page-select">Target Page</label>
+          <select id="review-page-select" class="form-select">
+            <option value="global">Project-Wide / Global</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="review-verdict-select">Review Verdict</label>
+          <select id="review-verdict-select" class="form-select">
+            <option value="approved">Approved &bull; Design Meets Requirements</option>
+            <option value="change_requested">Change Requested &bull; Refinement Required</option>
+            <option value="rejected">Rejected &bull; Total Redesign Needed</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="review-instructions-input">User Instructions <span class="required-star">*</span></label>
+          <textarea id="review-instructions-input" class="form-textarea" rows="3" placeholder="Exact verbatim feedback or modification instructions from user..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="review-actions-input">Applied Actions <span class="form-optional">(One per line)</span></label>
+          <textarea id="review-actions-input" class="form-textarea" rows="2" placeholder="e.g. Reduced card padding to 16px&#10;Tightened heading line-height"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary pdetail-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Record Review Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Decision -->
+  <div class="modal-backdrop pdetail-modal" id="pdetail-add-decision-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">Log Architectural Decision</h2>
+        <button class="modal-close-btn pdetail-modal-close" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="pdetail-add-decision-form">
+        <div class="form-group">
+          <label class="form-label" for="decision-scope-select">Decision Scope</label>
+          <select id="decision-scope-select" class="form-select">
+            <option value="global">Global &bull; Entire Project Architecture</option>
+            <option value="page">Page &bull; Isolated to Target View</option>
+            <option value="component">Component &bull; Isolated Design Component</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="decision-text-input">Decision Statement <span class="required-star">*</span></label>
+          <input type="text" id="decision-text-input" class="form-input" placeholder="e.g. Use CSS subgrid for card alignment" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="decision-reason-input">Architectural Rationale</label>
+          <textarea id="decision-reason-input" class="form-textarea" rows="2" placeholder="Why this decision was made and constraints it enforces..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary pdetail-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Decision</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Application Controllers -->
   <script src="./js/app.js"></script>
   <script src="./js/dashboard.js"></script>
   <script src="./js/dashboard-tasks.js"></script>
   <script src="./js/projects.js"></script>
+  <script src="./js/project-detail.js"></script>
   <script src="./js/updater-ui.js"></script>
   <script src="./js/settings-ai.js"></script>
 </body>

@@ -1,6 +1,6 @@
 {
   "name": "AI Design Department",
-  "description": "Desktop application foundation for AI Design Department with Apple-style UI, SQLite database layer, multi-provider AI engine (Gemini, OpenAI, Anthropic Claude, Groq), and Phase 4 Task Graph Orchestrator with DAG execution, SQLite persistence, and live IPC task monitor.",
+  "description": "Desktop application foundation for AI Design Department with Apple-style UI, SQLite database layer, multi-provider AI engine (Gemini, OpenAI, Anthropic Claude, Groq), Task Graph Orchestrator, and Phase 5 Project Knowledge Store with versioned documents, design seeds, tokens, pages, review logs, and decisions.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
