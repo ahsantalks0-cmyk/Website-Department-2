@@ -510,6 +510,28 @@
             </div>
           `;
         }
+
+        // Review Gate interactive card
+        if (ext.isReviewGate || msg.intent === 'REVIEW_GATE') {
+          checklistHtml += `
+            <div class="chat-review-gate-card">
+              <div class="chat-review-gate-header">
+                <span>🛡️ Visual Design Review Gate Active</span>
+              </div>
+              <p style="font-size: 13px; color: var(--text-2); margin: 4px 0 10px;">
+                Pipeline execution is paused waiting for your inspection of <strong>${this.escapeHtml(ext.taskTitle || ext.summary || 'Visual Design Direction')}</strong>.
+              </p>
+              <div class="chat-review-gate-actions">
+                <button class="btn-gate-approve" id="btn-chat-approve-${msg.id || Date.now()}" data-graph-id="${this.escapeHtml(ext.graphId || '')}" data-node-id="${this.escapeHtml(ext.nodeId || ext.gateId || '')}">
+                  ✓ Approve Direction
+                </button>
+                <button class="btn-gate-reject" id="btn-chat-reject-${msg.id || Date.now()}" data-graph-id="${this.escapeHtml(ext.graphId || '')}" data-node-id="${this.escapeHtml(ext.nodeId || ext.gateId || '')}">
+                  ↻ Request Revision
+                </button>
+              </div>
+            </div>
+          `;
+        }
       }
 
       const formattedText = this.formatMessageText(msg.text || '');
@@ -568,6 +590,69 @@
         handoffBtn.addEventListener('click', () => {
           if (window.AppNavigator) {
             window.AppNavigator.navigateTo('dashboard');
+          }
+        });
+      }
+
+      // Attach review gate approve button
+      const gateApproveBtn = container.querySelector('.btn-gate-approve');
+      if (gateApproveBtn) {
+        gateApproveBtn.addEventListener('click', async () => {
+          const graphId = gateApproveBtn.getAttribute('data-graph-id');
+          const nodeId = gateApproveBtn.getAttribute('data-node-id');
+          gateApproveBtn.disabled = true;
+          gateApproveBtn.textContent = 'Approving...';
+
+          try {
+            const api = window.orchestrator || window.api?.orchestrator || window.electronAPI?.orchestrator;
+            if (api && typeof api.respondToReview === 'function') {
+              await api.respondToReview({
+                graphId,
+                nodeId,
+                approved: true,
+                feedback: 'Approved by user via Chat',
+              });
+            }
+            gateApproveBtn.textContent = '✓ Approved';
+            this.showNotice('Visual design approved! Resuming execution pipeline.', 'success');
+            await this.loadMessages(this.currentConversationId);
+          } catch (err) {
+            console.error('[Chat] Review approve error:', err);
+            gateApproveBtn.disabled = false;
+            gateApproveBtn.textContent = '✓ Approve Direction';
+          }
+        });
+      }
+
+      // Attach review gate reject button
+      const gateRejectBtn = container.querySelector('.btn-gate-reject');
+      if (gateRejectBtn) {
+        gateRejectBtn.addEventListener('click', async () => {
+          const graphId = gateRejectBtn.getAttribute('data-graph-id');
+          const nodeId = gateRejectBtn.getAttribute('data-node-id');
+          const feedback = prompt('Please describe the design revisions you would like:');
+          if (feedback === null) return;
+
+          gateRejectBtn.disabled = true;
+          gateRejectBtn.textContent = 'Submitting...';
+
+          try {
+            const api = window.orchestrator || window.api?.orchestrator || window.electronAPI?.orchestrator;
+            if (api && typeof api.respondToReview === 'function') {
+              await api.respondToReview({
+                graphId,
+                nodeId,
+                approved: false,
+                feedback,
+              });
+            }
+            gateRejectBtn.textContent = '↻ Revision Requested';
+            this.showNotice('Revision requested. Regenerating design direction...', 'info');
+            await this.loadMessages(this.currentConversationId);
+          } catch (err) {
+            console.error('[Chat] Review reject error:', err);
+            gateRejectBtn.disabled = false;
+            gateRejectBtn.textContent = '↻ Request Revision';
           }
         });
       }

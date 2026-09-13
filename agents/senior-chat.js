@@ -221,14 +221,34 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
         }
       }
 
-      // 10. Handle Precise Changes logging
-      if (projectId && classification.intent === 'PRECISE_CHANGE') {
-        this.knowledgeStore.logDecision(projectId, {
-          decision: `User precise modification: ${text}`,
-          rationale: 'Direct user instruction',
-          scope: classification.scope || 'component',
-          target: classification.changeTargets?.join(', ') || 'ui',
-        });
+      // 10. Handle Precise Changes & Dynamic Page Additions logging
+      if (projectId) {
+        if (classification.intent === 'PRECISE_CHANGE') {
+          this.knowledgeStore.logDecision(projectId, {
+            decision: `User precise modification: ${text}`,
+            rationale: 'Direct user instruction',
+            scope: classification.scope || 'component',
+            target: classification.changeTargets?.join(', ') || 'ui',
+          });
+        }
+
+        // Check for later page additions: "ek page aur add karo: X" or "add page X"
+        const addPageMatch = text.match(/(?:ek\s+page\s+aur\s+add\s+karo|add\s+(?:a\s+)?page|page\s+add\s+karo)[:\s]+([^.,\n]+)/i);
+        if (addPageMatch && addPageMatch[1]) {
+          const newPageName = addPageMatch[1].trim();
+          try {
+            this.knowledgeStore.addPage(projectId, { name: newPageName });
+            this.knowledgeStore.logDecision(projectId, {
+              decision: `Added page: ${newPageName}`,
+              rationale: 'User request in chat',
+              scope: 'pages',
+              target: newPageName,
+            });
+            console.log(`[SeniorChatAgent] Dynamically added page "${newPageName}" to project #${projectId}`);
+          } catch (pageErr) {
+            console.warn('[SeniorChatAgent] Error adding page dynamically:', pageErr.message);
+          }
+        }
       }
 
       // 11. Auto-create project if requirements complete and no project exists

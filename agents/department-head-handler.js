@@ -82,6 +82,7 @@ function registerDepartmentHeadHandlers(aiHandler, orchestratorInstance) {
 
   ipcMain.handle('orch:respondReview', handleReviewResponse);
   ipcMain.handle('dept-head:respondReview', handleReviewResponse);
+  ipcMain.handle('review:respond', handleReviewResponse);
 
   // 5. Seed Engine IPC channels
   const { designSeedAgent } = require('./design-seed-agent');

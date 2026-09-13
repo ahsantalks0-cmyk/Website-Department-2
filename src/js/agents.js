@@ -493,4 +493,10 @@
 
   const agentsController = new AgentsController();
   window.AgentsController = agentsController;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.AgentsController) {
+      window.AgentsController.load();
+    }
+  });
 })();

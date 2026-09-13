@@ -160,8 +160,10 @@ class DepartmentHeadAgent {
       try {
         const execGraph = this.buildExecutionGraph(projectId, projectName, plan);
         executionGraphId = execGraph.id;
-        console.log(`[DepartmentHead] graph started: ${executionGraphId}`);
-        agentsRegistry.logAction('agent-2-dept-head', `Dispatched TaskGraph "${executionGraphId}" to Orchestrator`);
+        const nodesCount = execGraph.nodes ? execGraph.nodes.size : 0;
+        console.log(`execution graph started: ${executionGraphId}, ${nodesCount} nodes`);
+        console.log(`[DepartmentHead] graph started: ${executionGraphId} (${nodesCount} nodes)`);
+        agentsRegistry.logAction('agent-2-dept-head', `Dispatched TaskGraph "${executionGraphId}" (${nodesCount} nodes) to Orchestrator`);
 
         // Run execution graph in background (do not block the handoff node)
         this.orchestrator.runGraph(execGraph).catch((graphErr) => {
@@ -549,6 +551,8 @@ class DepartmentHeadAgent {
    */
   async handleReviewGate({ params, context, signal }) {
     const taskTitle = params?.title || params?.taskId || 'User Review Gate';
+    const projectId = params?.projectId || 1;
+    const gateId = params?.taskId || context.nodeId;
     console.log(`[ReviewGate] review gate reached: ${taskTitle}. Graph paused waiting for user.`);
 
     context.log(`Review gate reached: "${taskTitle}". Pausing execution for user review.`);
@@ -557,6 +561,44 @@ class DepartmentHeadAgent {
     // Pause the parent task graph in the Orchestrator
     if (this.orchestrator && context.graphId) {
       this.orchestrator.pauseGraph(context.graphId);
+
+      // Emit review:requested event
+      if (typeof this.orchestrator.emitEvent === 'function') {
+        this.orchestrator.emitEvent('review:requested', {
+          projectId,
+          gateId,
+          nodeId: context.nodeId,
+          graphId: context.graphId,
+          summary: taskTitle,
+        });
+      }
+    }
+
+    // Post review gate into chat stream so user can approve/reject directly in chat
+    try {
+      const convs = conversationStore.listConversations();
+      const matching = convs.find((c) => String(c.project_id) === String(projectId));
+      const convId = matching ? matching.id : (convs[0]?.id || 1);
+
+      conversationStore.addMessage({
+        conversationId: convId,
+        role: 'agent',
+        text: `### 🛡️ Visual Design Review Gate\n\n**${taskTitle}** is ready for your review.\n\n*Review the design direction above or in the Task Monitor. Please approve to continue pipeline execution, or request revisions.*`,
+        intent: 'REVIEW_GATE',
+        extracted: {
+          author: 'Department Head',
+          isReviewGate: true,
+          gateId,
+          nodeId: context.nodeId,
+          graphId: context.graphId,
+          projectId,
+          taskTitle,
+          summary: taskTitle,
+        },
+      });
+      console.log(`[ReviewGate] Posted review gate card into conversation #${convId}`);
+    } catch (chatErr) {
+      console.warn('[ReviewGate] Failed to post review message to chat:', chatErr.message);
     }
 
     agentsRegistry.setActivity('agent-2-dept-head', `Paused at review gate: "${taskTitle}"`);
