@@ -168,8 +168,12 @@ async function runTests() {
     eventBus.setDb(db);
 
     let received = null;
+    let subscribeReceived = null;
     eventBus.on('task:progress', (e) => {
       received = e;
+    });
+    const unsub = eventBus.subscribe('task:progress', (e) => {
+      subscribeReceived = e;
     });
 
     eventBus.publish('task:progress', {
@@ -180,6 +184,22 @@ async function runTests() {
 
     assert.ok(received);
     assert.strictEqual(received.data.progress, 75);
+    assert.ok(subscribeReceived);
+    assert.strictEqual(subscribeReceived.data.progress, 75);
+
+    // Test unsubscribe
+    unsub();
+    subscribeReceived = null;
+    eventBus.publish('task:progress', {
+      graphId: 'test-g-1',
+      nodeId: 'node-1',
+      data: { progress: 100 },
+    });
+    assert.strictEqual(subscribeReceived, null);
+
+    // Verify agents-registry loads cleanly without uncaught exception
+    const { agentsRegistry } = require('../agents/agents-registry');
+    assert.strictEqual(agentsRegistry.getAll().length, 46);
 
     // Verify row in task_events table
     const row = db.prepare('SELECT * FROM task_events WHERE graph_id = ?').get('test-g-1');

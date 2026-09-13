@@ -28,6 +28,26 @@ class OrchestratorEventBus extends EventEmitter {
   }
 
   /**
+   * Subscribes to an event type (alias to EventEmitter on).
+   * @param {string} eventType
+   * @param {Function} listener
+   * @returns {Function} Unsubscribe function
+   */
+  subscribe(eventType, listener) {
+    this.on(eventType, listener);
+    return () => this.off(eventType, listener);
+  }
+
+  /**
+   * Unsubscribes a listener from an event type.
+   * @param {string} eventType
+   * @param {Function} listener
+   */
+  unsubscribe(eventType, listener) {
+    this.off(eventType, listener);
+  }
+
+  /**
    * Sets the database instance and prepares SQL statements.
    * @param {import('better-sqlite3').Database} db
    */
@@ -93,8 +113,8 @@ class OrchestratorEventBus extends EventEmitter {
     this.emit(eventType, eventPayload);
     this.emit('*', eventPayload);
 
-    // 2. Persist to SQLite task_events table
-    if (this.db) {
+    // 2. Persist to SQLite task_events table (for graph/task lifecycle events with graphId)
+    if (this.db && graphId) {
       try {
         let dataJson = '{}';
         try {

@@ -638,7 +638,9 @@ class AgentsRegistry {
     const agent = this.getAgent(agentId);
     if (agent) {
       agent.currentActivity = activity;
-      eventBus.publish('agents:updated', { agentId, activity });
+      if (eventBus && typeof eventBus.publish === 'function') {
+        eventBus.publish('agents:updated', { data: { agentId, activity } });
+      }
     }
   }
 
@@ -658,7 +660,9 @@ class AgentsRegistry {
       if (agent.lastActions.length > 20) {
         agent.lastActions = agent.lastActions.slice(0, 20);
       }
-      eventBus.publish('agents:updated', { agentId, action });
+      if (eventBus && typeof eventBus.publish === 'function') {
+        eventBus.publish('agents:updated', { data: { agentId, action } });
+      }
     }
   }
 
@@ -683,13 +687,22 @@ class AgentsRegistry {
    * Subscribes to orchestrator events to reflect live agent activities.
    */
   setupEventListeners() {
-    eventBus.subscribe('graph:started', ({ data }) => {
+    if (!eventBus) return;
+    const onEvent = (event, handler) => {
+      if (typeof eventBus.subscribe === 'function') {
+        eventBus.subscribe(event, handler);
+      } else if (typeof eventBus.on === 'function') {
+        eventBus.on(event, handler);
+      }
+    };
+
+    onEvent('graph:started', ({ data } = {}) => {
       const graphName = data?.name || 'Task Graph';
       this.setActivity('agent-2-dept-head', `Running graph: "${graphName}"`);
       this.logAction('agent-2-dept-head', `Launched execution graph: "${graphName}"`);
     });
 
-    eventBus.subscribe('task:started', ({ nodeId, data }) => {
+    onEvent('task:started', ({ nodeId, data } = {}) => {
       const handler = data?.handler || 'Task';
       if (handler.includes('department-head')) {
         this.setActivity('agent-2-dept-head', `Synthesizing execution plan (Node: ${nodeId})`);
@@ -699,30 +712,30 @@ class AgentsRegistry {
       }
     });
 
-    eventBus.subscribe('task:completed', ({ nodeId }) => {
-      if (nodeId.includes('dept-head') || nodeId.includes('plan')) {
+    onEvent('task:completed', ({ nodeId } = {}) => {
+      if (nodeId && (nodeId.includes('dept-head') || nodeId.includes('plan'))) {
         this.setActivity('agent-2-dept-head', 'Execution plan completed & task graph dispatched');
         this.logAction('agent-2-dept-head', `Plan completed successfully for node "${nodeId}"`);
       }
     });
 
-    eventBus.subscribe('task:waiting_for_user', ({ data }) => {
+    onEvent('task:waiting_for_user', ({ data } = {}) => {
       const msg = data?.message || 'Review gate reached';
       this.setActivity('agent-2-dept-head', `Review gate active: Waiting for user approval`);
       this.logAction('agent-2-dept-head', `Paused graph at review gate: "${msg}"`);
     });
 
-    eventBus.subscribe('graph:paused', () => {
+    onEvent('graph:paused', () => {
       this.setActivity('agent-2-dept-head', 'Graph paused (Waiting for user review)');
       this.logAction('agent-2-dept-head', 'Task graph paused at review gate');
     });
 
-    eventBus.subscribe('graph:resumed', () => {
+    onEvent('graph:resumed', () => {
       this.setActivity('agent-2-dept-head', 'Graph resumed: Running remaining tasks');
       this.logAction('agent-2-dept-head', 'Task graph resumed after review');
     });
 
-    eventBus.subscribe('graph:completed', ({ data }) => {
+    onEvent('graph:completed', ({ data } = {}) => {
       const name = data?.name || 'Graph';
       this.setActivity('agent-2-dept-head', `Completed all tasks for "${name}"`);
       this.logAction('agent-2-dept-head', `Finished graph "${name}" successfully`);
