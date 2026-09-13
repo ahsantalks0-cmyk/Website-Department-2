@@ -16,7 +16,7 @@
  */
 
 const { handlerRegistry } = require('../core/handler-registry');
-const { TaskGraph } = require('../core/task-graph-builder');
+const { TaskGraph } = require('../core/task-graph');
 const { knowledgeStore: defaultKnowledgeStore } = require('../core/knowledge-store');
 const { conversationStore } = require('./conversation-store');
 const { projectChecklist } = require('./project-checklist');

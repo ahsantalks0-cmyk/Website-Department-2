@@ -95,7 +95,7 @@ function createGraph(graphObject) {
     throw new Error('[TaskGraph] Invalid graph: input must be a valid object');
   }
 
-  const graphId = graphObject.graphId || `graph-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  const graphId = graphObject.graphId || graphObject.id || `graph-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   const name = String(graphObject.name || 'Untitled Graph').trim();
 
   if (!Array.isArray(graphObject.nodes) || graphObject.nodes.length === 0) {
@@ -337,9 +337,99 @@ function isGraphFinished(graph) {
   return activeNodes.length === 0;
 }
 
+/**
+ * TaskGraph builder class for programmatic graph construction.
+ */
+class TaskGraph {
+  /**
+   * @param {object} [options]
+   * @param {string} [options.id]
+   * @param {string} [options.graphId]
+   * @param {string} [options.name]
+   * @param {number} [options.maxConcurrency]
+   * @param {Array} [options.nodes]
+   */
+  constructor(options = {}) {
+    this.graphId = options.id || options.graphId || `graph-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    this.id = this.graphId;
+    this.name = String(options.name || 'Untitled Graph').trim();
+    this.maxConcurrency = typeof options.maxConcurrency === 'number' ? options.maxConcurrency : 3;
+    this.nodes = Array.isArray(options.nodes) ? [...options.nodes] : [];
+    this.status = options.status || GraphState.PENDING;
+    this.createdAt = options.createdAt || new Date().toISOString();
+    this.updatedAt = options.updatedAt || new Date().toISOString();
+  }
+
+  /**
+   * Adds a node to the graph builder.
+   * @param {string} id
+   * @param {object} options
+   * @returns {TaskGraph}
+   */
+  addNode(id, options = {}) {
+    const nodeId = String(id || options.id || '').trim();
+    if (!nodeId) {
+      throw new Error('[TaskGraph] Node must have a non-empty id');
+    }
+
+    const node = {
+      id: nodeId,
+      handler: options.handler || 'task.default',
+      dependsOn: Array.isArray(options.dependsOn) ? [...options.dependsOn] : [],
+      params: options.params && typeof options.params === 'object' ? { ...options.params } : {},
+      priority: typeof options.priority === 'number' ? options.priority : 1,
+      maxRetries: typeof options.maxRetries === 'number' ? Math.max(0, options.maxRetries) : 0,
+      timeoutMs: typeof options.timeoutMs === 'number' ? Math.max(1000, options.timeoutMs) : 120000,
+      status: options.status || NodeState.PENDING,
+      attempts: 0,
+      startedAt: null,
+      finishedAt: null,
+      error: null,
+      output: null,
+      progressPercent: 0,
+    };
+
+    const existingIndex = this.nodes.findIndex((n) => n.id === nodeId);
+    if (existingIndex >= 0) {
+      this.nodes[existingIndex] = node;
+    } else {
+      this.nodes.push(node);
+    }
+
+    return this;
+  }
+
+  /**
+   * Validates and returns the normalized graph object.
+   * @returns {object}
+   */
+  build() {
+    return createGraph({
+      graphId: this.graphId,
+      name: this.name,
+      maxConcurrency: this.maxConcurrency,
+      nodes: this.nodes,
+    });
+  }
+
+  toJSON() {
+    return {
+      graphId: this.graphId,
+      id: this.graphId,
+      name: this.name,
+      maxConcurrency: this.maxConcurrency,
+      status: this.status,
+      nodes: this.nodes,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
+  }
+}
+
 module.exports = {
   NodeState,
   GraphState,
+  TaskGraph,
   createGraph,
   getReadyNodes,
   getExecutionOrder,
