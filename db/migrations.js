@@ -145,6 +145,64 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 4,
+    name: '004_task_orchestrator_tables',
+    up: (db) => {
+      // 10. Task Graphs table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS task_graphs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          graph_id TEXT UNIQUE NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          result_json TEXT,
+          stats_json TEXT
+        );
+      `);
+
+      // 11. Individual Task Nodes table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          graph_id TEXT NOT NULL,
+          node_id TEXT NOT NULL,
+          handler TEXT NOT NULL,
+          status TEXT NOT NULL,
+          attempts INTEGER DEFAULT 0,
+          started_at TEXT,
+          finished_at TEXT,
+          error TEXT,
+          output_json TEXT,
+          UNIQUE (graph_id, node_id)
+        );
+      `);
+
+      // 12. Task Events stream table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS task_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          graph_id TEXT NOT NULL,
+          node_id TEXT,
+          event_type TEXT NOT NULL,
+          data_json TEXT,
+          timestamp TEXT DEFAULT (datetime('now'))
+        );
+      `);
+
+      // Indexes for query performance
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_task_graphs_graph_id ON task_graphs(graph_id);
+        CREATE INDEX IF NOT EXISTS idx_task_graphs_status ON task_graphs(status);
+        CREATE INDEX IF NOT EXISTS idx_tasks_graph_id ON tasks(graph_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_node_id ON tasks(graph_id, node_id);
+        CREATE INDEX IF NOT EXISTS idx_task_events_graph ON task_events(graph_id);
+        CREATE INDEX IF NOT EXISTS idx_task_events_timestamp ON task_events(timestamp DESC);
+      `);
+    },
+  },
 ];
 
 module.exports = {

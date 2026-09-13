@@ -226,15 +226,67 @@ const aiBridge = {
   },
 };
 
-// Expose exact `window.ai` namespace required by renderer
+/**
+ * ==============================================================================
+ * PHASE 4: ORCHESTRATOR & TASK GRAPH BRIDGE
+ * ==============================================================================
+ */
+const orchestratorBridge = {
+  runDemoGraph: () => {
+    console.log('[Preload] Invoking orch:runDemoGraph');
+    return ipcRenderer.invoke('orch:runDemoGraph');
+  },
+  pauseGraph: (graphId) => {
+    console.log('[Preload] Invoking orch:pauseGraph', graphId);
+    return ipcRenderer.invoke('orch:pauseGraph', graphId);
+  },
+  resumeGraph: (graphId) => {
+    console.log('[Preload] Invoking orch:resumeGraph', graphId);
+    return ipcRenderer.invoke('orch:resumeGraph', graphId);
+  },
+  cancelGraph: (graphId) => {
+    console.log('[Preload] Invoking orch:cancelGraph', graphId);
+    return ipcRenderer.invoke('orch:cancelGraph', graphId);
+  },
+  getActiveGraph: () => {
+    return ipcRenderer.invoke('orch:getActiveGraph');
+  },
+  getGraphHistory: (limit = 20) => {
+    return ipcRenderer.invoke('orch:getGraphHistory', limit);
+  },
+  getGraphDetail: (graphId) => {
+    return ipcRenderer.invoke('orch:getGraphDetail', graphId);
+  },
+  runGraph: (graphObject) => {
+    return ipcRenderer.invoke('orch:runGraph', graphObject);
+  },
+  onEvent: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const subscription = (_event, payload) => {
+      try {
+        callback(payload);
+      } catch (err) {
+        console.error('[Preload] Error in orchestrator onEvent callback:', err);
+      }
+    };
+    ipcRenderer.on('orchestrator:event', subscription);
+    return () => {
+      ipcRenderer.removeListener('orchestrator:event', subscription);
+    };
+  },
+};
+
+// Expose exact `window.ai` and `window.orchestrator` namespaces required by renderer
 contextBridge.exposeInMainWorld('ai', aiBridge);
+contextBridge.exposeInMainWorld('orchestrator', orchestratorBridge);
 
 // Expose on both `window.api` and `window.electronAPI` for developer ergonomics and backward compatibility
 const fullBridge = {
   ...apiBridge,
   ai: aiBridge,
+  orchestrator: orchestratorBridge,
 };
 
 contextBridge.exposeInMainWorld('api', fullBridge);
 contextBridge.exposeInMainWorld('electronAPI', fullBridge);
-console.log('[Preload] contextBridge initialized with window.ai, window.api, and window.electronAPI');
+console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.api, and window.electronAPI');

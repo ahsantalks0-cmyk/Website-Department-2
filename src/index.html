@@ -185,6 +185,96 @@
             </div>
           </div>
 
+          <!-- ================================================================ -->
+          <!-- PHASE 4: TASK GRAPH ENGINE & ORCHESTRATOR MONITOR                -->
+          <!-- ================================================================ -->
+          <div class="task-monitor-section" id="task-monitor-section">
+            <div class="card task-monitor-card">
+              <!-- Monitor Header with Actions -->
+              <div class="task-monitor-header">
+                <div class="task-monitor-meta">
+                  <div class="task-monitor-title-row">
+                    <h2 class="task-monitor-title" id="orch-graph-name">Task Graph Orchestrator</h2>
+                    <span class="orch-status-pill status-idle" id="orch-graph-status">Standby</span>
+                  </div>
+                  <div class="task-monitor-subtitle" id="orch-graph-subtitle">
+                    Main process DAG task execution engine • Provider-agnostic
+                  </div>
+                </div>
+
+                <div class="task-monitor-actions">
+                  <!-- Run Pipeline Test Button -->
+                  <button class="btn btn-primary" id="btn-run-pipeline-test" title="Run Phase 4 verification DAG">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Run Pipeline Test</span>
+                  </button>
+
+                  <!-- Control Buttons (Pause, Resume, Cancel) -->
+                  <button class="btn btn-secondary btn-icon-only" id="btn-pause-pipeline" title="Pause Graph" disabled>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+                      <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+                    </svg>
+                  </button>
+
+                  <button class="btn btn-secondary btn-icon-only" id="btn-resume-pipeline" title="Resume Graph" style="display: none;" disabled>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </button>
+
+                  <button class="btn btn-secondary btn-icon-only" id="btn-cancel-pipeline" title="Cancel Graph" disabled>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Live Execution DAG Nodes Grid -->
+              <div class="task-nodes-container">
+                <div class="task-nodes-header">
+                  <span class="task-nodes-label">Execution Graph Nodes</span>
+                  <span class="task-nodes-counter" id="orch-nodes-counter">0 / 0 Completed</span>
+                </div>
+                <div class="task-nodes-grid" id="task-nodes-grid">
+                  <!-- Rendered dynamically by dashboard-tasks.js -->
+                  <div class="task-nodes-empty">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+                      <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+                      <rect x="9" y="15" width="6" height="6" rx="1"></rect>
+                      <path d="M6 9v3a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V9"></path>
+                      <line x1="12" y1="13" x2="12" y2="15"></line>
+                    </svg>
+                    <p>No active pipeline graph. Click <strong>Run Pipeline Test</strong> to execute the verification task DAG.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recent Pipeline Runs History -->
+              <div class="task-history-section">
+                <div class="task-history-header">
+                  <div class="task-history-title">Recent Pipeline Runs</div>
+                  <button class="btn btn-text btn-sm" id="btn-refresh-task-history">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <polyline points="1 20 1 14 7 14"></polyline>
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span>Refresh</span>
+                  </button>
+                </div>
+                <div class="task-history-list" id="task-history-list">
+                  <!-- Past graphs from SQLite -->
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Recent Activity Section -->
           <div class="recent-activity-section">
             <div class="section-header">
@@ -659,9 +749,73 @@
     </div>
   </div>
 
+  <!-- Modal: Task Node Inspector (Phase 4 Orchestrator) -->
+  <div class="modal-backdrop" id="task-inspector-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-md">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-badge-row">
+            <span class="orch-status-pill status-idle" id="modal-task-status">Pending</span>
+            <span class="task-handler-badge" id="modal-task-handler">demo.wait</span>
+          </div>
+          <h2 class="modal-title" id="modal-task-id">Task Details</h2>
+        </div>
+        <button class="modal-close-btn" id="btn-close-task-modal" aria-label="Close dialog">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body-content">
+        <div class="inspector-meta-grid">
+          <div class="inspector-meta-item">
+            <span class="inspector-label">Attempts</span>
+            <span class="inspector-value" id="modal-task-attempts">0</span>
+          </div>
+          <div class="inspector-meta-item">
+            <span class="inspector-label">Duration</span>
+            <span class="inspector-value" id="modal-task-duration">-</span>
+          </div>
+          <div class="inspector-meta-item">
+            <span class="inspector-label">Started At</span>
+            <span class="inspector-value" id="modal-task-started">-</span>
+          </div>
+          <div class="inspector-meta-item">
+            <span class="inspector-label">Finished At</span>
+            <span class="inspector-value" id="modal-task-finished">-</span>
+          </div>
+        </div>
+
+        <!-- Error block if present -->
+        <div class="inspector-error-box" id="modal-task-error-box" style="display: none;">
+          <div class="inspector-error-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>Error Description</span>
+          </div>
+          <div class="inspector-error-text" id="modal-task-error-text"></div>
+        </div>
+
+        <!-- Output JSON Block -->
+        <div class="inspector-json-section">
+          <div class="inspector-section-label">Task Output</div>
+          <pre class="inspector-json-pre" id="modal-task-output">No output generated.</pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-task-inspector">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Application Controllers -->
   <script src="./js/app.js"></script>
   <script src="./js/dashboard.js"></script>
+  <script src="./js/dashboard-tasks.js"></script>
   <script src="./js/projects.js"></script>
   <script src="./js/updater-ui.js"></script>
   <script src="./js/settings-ai.js"></script>

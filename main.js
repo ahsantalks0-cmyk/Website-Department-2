@@ -15,6 +15,7 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getDb, runMigrations, closeDb } = require('./db/database');
 const { registerAiHandlers, aiHandler } = require('./ai/ai-handler.js');
+const { registerOrchestratorHandlers } = require('./core/orchestrator-ipc.js');
 
 // Keep global reference of the window object to prevent garbage collection
 let mainWindow = null;
@@ -49,6 +50,8 @@ if (!gotTheLock) {
     const db = getDb();
     console.log('[App] Initializing Phase 3 AI subsystem and registering IPC handlers...');
     registerAiHandlers(db);
+    console.log('[App] Initializing Phase 4 Task Orchestrator & Graph Engine...');
+    registerOrchestratorHandlers(db, aiHandler);
 
     createWindow();
 

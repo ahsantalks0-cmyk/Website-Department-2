@@ -116,6 +116,72 @@ class AIHandler {
   }
 
   /**
+   * Generates AI completion using the active provider and model.
+   * Safe for direct invocation by Orchestrator / Task Runner in the main process.
+   * @param {object} [params]
+   * @returns {Promise<object>}
+   */
+  async generate(params = {}) {
+    try {
+      const activeProviderId = (params.provider || this.registry.getActiveProviderId()).toLowerCase();
+      const provider = this.registry.getProvider(activeProviderId);
+
+      if (!provider) {
+        return { success: false, error: `Invalid active provider: "${activeProviderId}"` };
+      }
+
+      if (!provider.getApiKey()) {
+        return {
+          success: false,
+          error: `Please enter and save your ${provider.name} API key first.`,
+        };
+      }
+
+      // Determine exact model ID
+      let exactModel = params.model || this.registry.getActiveModel(activeProviderId);
+
+      if (!exactModel) {
+        // If no active model is selected yet, inspect cached models
+        const cached = this.modelService.getCachedModels(activeProviderId);
+        if (cached && cached.length > 0) {
+          exactModel = cached[0].id;
+          this.registry.setActiveModel(activeProviderId, exactModel);
+        } else {
+          return {
+            success: false,
+            error: 'No model selected. Please select a model from the dropdown or click "Test Connection" to discover live models.',
+          };
+        }
+      }
+
+      console.log(`[AIHandler] Request sent to provider "${activeProviderId}" with exact model: "${exactModel}"`);
+
+      const res = await this.queue.enqueue(
+        (signal) =>
+          provider.generate({
+            ...params,
+            model: exactModel,
+            signal,
+          }),
+        {
+          model: exactModel,
+          provider: activeProviderId,
+        }
+      );
+
+      console.log(
+        `[AIHandler] Model request completed for "${exactModel}":`,
+        res?.success ? 'Success' : `Error (${res?.status}): ${res?.error}`
+      );
+
+      return res || { success: false, error: 'Empty response returned from model execution.' };
+    } catch (err) {
+      console.error('[AIHandler] generate error:', err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
    * Wires all IPC endpoints for multi-provider live model architecture.
    */
   registerIpcHandlers() {
@@ -244,63 +310,7 @@ class AIHandler {
 
     // 7. ai:generate(params) -> Uses active provider + active model EXACTLY
     ipcMain.handle('ai:generate', async (_event, params = {}) => {
-      try {
-        const activeProviderId = (params.provider || this.registry.getActiveProviderId()).toLowerCase();
-        const provider = this.registry.getProvider(activeProviderId);
-
-        if (!provider) {
-          return { success: false, error: `Invalid active provider: "${activeProviderId}"` };
-        }
-
-        if (!provider.getApiKey()) {
-          return {
-            success: false,
-            error: `Please enter and save your ${provider.name} API key first.`,
-          };
-        }
-
-        // Determine exact model ID
-        let exactModel = params.model || this.registry.getActiveModel(activeProviderId);
-
-        if (!exactModel) {
-          // If no active model is selected yet, inspect cached models
-          const cached = this.modelService.getCachedModels(activeProviderId);
-          if (cached && cached.length > 0) {
-            exactModel = cached[0].id;
-            this.registry.setActiveModel(activeProviderId, exactModel);
-          } else {
-            return {
-              success: false,
-              error: 'No model selected. Please select a model from the dropdown or click "Test Connection" to discover live models.',
-            };
-          }
-        }
-
-        console.log(`[AIHandler IPC] Request sent to provider "${activeProviderId}" with exact model: "${exactModel}"`);
-
-        const res = await this.queue.enqueue(
-          (signal) =>
-            provider.generate({
-              ...params,
-              model: exactModel,
-              signal,
-            }),
-          {
-            model: exactModel,
-            provider: activeProviderId,
-          }
-        );
-
-        console.log(
-          `[AIHandler IPC] Model request completed for "${exactModel}":`,
-          res?.success ? 'Success' : `Error (${res?.status}): ${res?.error}`
-        );
-
-        return res || { success: false, error: 'Empty response returned from model execution.' };
-      } catch (err) {
-        console.error('[AIHandler IPC] ai:generate error:', err.message);
-        return { success: false, error: err.message };
-      }
+      return this.generate(params);
     });
 
     // 8. ai:getActiveConfig -> { provider, model, tier, features, configured, warning, note }

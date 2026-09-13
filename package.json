@@ -32,6 +32,7 @@
       "preload.js",
       "index.html",
       "ai/**/*",
+      "core/**/*",
       "db/**/*",
       "src/**/*",
       "assets/**/*",
