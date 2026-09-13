@@ -69,6 +69,52 @@ function registerDepartmentHeadHandlers(aiHandler, orchestratorInstance) {
       return null;
     }
   });
+
+  // 4. orch:respondReview / dept-head:respondReview -> unpauses and responds to review gate
+  const handleReviewResponse = async (_event, payload) => {
+    try {
+      return await departmentHeadAgent.respondToReview(payload || {});
+    } catch (err) {
+      console.error('[DeptHeadHandler] respondToReview error:', err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  ipcMain.handle('orch:respondReview', handleReviewResponse);
+  ipcMain.handle('dept-head:respondReview', handleReviewResponse);
+
+  // 5. Seed Engine IPC channels
+  const { designSeedAgent } = require('./design-seed-agent');
+  if (aiHandler) {
+    designSeedAgent.setAiHandler(aiHandler);
+  }
+
+  ipcMain.handle('seed:get', async (_event, projectId) => {
+    try {
+      return designSeedAgent.getSeed(projectId);
+    } catch (err) {
+      console.error('[DeptHeadHandler] seed:get error:', err.message);
+      return null;
+    }
+  });
+
+  ipcMain.handle('seed:regenerate', async (_event, { projectId, feedback }) => {
+    try {
+      return await designSeedAgent.generateSeed(projectId, { regenerate: true, feedback });
+    } catch (err) {
+      console.error('[DeptHeadHandler] seed:regenerate error:', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('seed:getReport', async (_event, projectId) => {
+    try {
+      return designSeedAgent.getAntiGenericReport(projectId);
+    } catch (err) {
+      console.error('[DeptHeadHandler] seed:getReport error:', err.message);
+      return { valid: false, score: 0, violations: [] };
+    }
+  });
 }
 
 module.exports = {

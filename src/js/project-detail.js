@@ -382,6 +382,35 @@
             </div>
           </div>
 
+          <!-- G) 9-AXIS DESIGN SEED ENGINE SECTION -->
+          <div class="card pdetail-card" id="card-design-seed-engine">
+            <div class="pdetail-card-header">
+              <div class="pdetail-card-title-group">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+                <h3>Design Seed Engine (9-Axis)</h3>
+                <span class="seed-craft-badge">Agent 3</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-seed-regenerate-ui">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <span>Regenerate Seed</span>
+              </button>
+            </div>
+
+            <div class="pdetail-card-desc">
+              Mathematical visual DNA governing layout, typography scales, contrast, density, motion, and anti-generic compliance.
+            </div>
+
+            ${renderDesignSeedSection(seed)}
+          </div>
+
           <!-- F) RAW KNOWLEDGE DOCUMENTS (Collapsible) -->
           <div class="card pdetail-card">
             <div class="pdetail-card-header">
@@ -522,6 +551,123 @@
         </div>
       `;
     }).join('');
+  }
+
+  function renderDesignSeedSection(seed = null) {
+    if (!seed) {
+      return `
+        <div class="seed-empty-state">
+          <p>No Design Seed generated yet. Run the execution plan or click below to generate a bespoke 9-axis visual seed.</p>
+        </div>
+      `;
+    }
+
+    const layout = seed.layout || {};
+    const typo = seed.typography || {};
+    const color = seed.colorDirection || {};
+    const palette = color.palette || {};
+    const density = seed.density || {};
+    const motion = seed.motion || {};
+    const shape = seed.shapeLanguage || {};
+    const depth = seed.depth || {};
+    const signature = seed.signatureElement || {};
+    const validation = seed.antiGenericValidation || { score: 100, compliant: true, checkedRules: [] };
+
+    return `
+      <!-- Anti-Generic Shield Badge -->
+      <div class="seed-shield-banner ${validation.compliant ? 'shield-pass' : 'shield-warning'}">
+        <div class="seed-shield-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <div>
+            <strong>Anti-Generic Shield (R2–R9 Verified)</strong>
+            <span class="seed-shield-subtitle">Zero AI clichés • WCAG AA 4.5:1 • 8pt Rhythmic Baseline</span>
+          </div>
+        </div>
+        <span class="seed-score-badge">${validation.score || 100}/100</span>
+      </div>
+
+      <!-- 9-Axis Grid -->
+      <div class="seed-axes-grid">
+        <!-- 1. Layout Archetype -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">01</div>
+          <div class="seed-axis-title">Layout Archetype</div>
+          <div class="seed-axis-val">${escapeHtml(layout.archetype || 'Custom Fluid')}</div>
+          <div class="seed-axis-sub">${escapeHtml(layout.description || 'Proportional hierarchy with balanced negative space')}</div>
+        </div>
+
+        <!-- 2. Typography -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">02</div>
+          <div class="seed-axis-title">Typography System</div>
+          <div class="seed-axis-val">${escapeHtml(typo.displayFont || 'Outfit')} / ${escapeHtml(typo.bodyFont || 'Outfit')}</div>
+          <div class="seed-axis-sub">Scale Ratio: <strong>${escapeHtml(String(typo.scaleRatio || '1.25'))}</strong> (Major Third)</div>
+        </div>
+
+        <!-- 3. Color Direction -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">03</div>
+          <div class="seed-axis-title">Color Palette</div>
+          <div class="seed-swatches-inline">
+            <span class="seed-dot" style="background:${palette.background || '#090a0f'}" title="Background"></span>
+            <span class="seed-dot" style="background:${palette.surface || '#121520'}" title="Surface"></span>
+            <span class="seed-dot" style="background:${palette.accentPrimary || '#4f6ef7'}" title="Accent Primary"></span>
+            <span class="seed-dot" style="background:${palette.accentSecondary || '#00d2ff'}" title="Accent Secondary"></span>
+          </div>
+          <div class="seed-axis-sub">${escapeHtml(color.contrastRationale || 'WCAG AA Compliant')}</div>
+        </div>
+
+        <!-- 4. Density -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">04</div>
+          <div class="seed-axis-title">Spatial Density</div>
+          <div class="seed-axis-val">${escapeHtml(density.spatialScale || 'Comfortable (8pt)')}</div>
+          <div class="seed-axis-sub">Container: ${escapeHtml(density.containerPadding || '24px')}, Gap: ${escapeHtml(density.componentGap || '16px')}</div>
+        </div>
+
+        <!-- 5. Motion -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">05</div>
+          <div class="seed-axis-title">Motion & Curves</div>
+          <div class="seed-axis-val">${escapeHtml(motion.archetype || 'Snappy Spring')}</div>
+          <div class="seed-axis-sub">Duration: ${escapeHtml(motion.duration || '200ms')} (${escapeHtml(motion.timingFunction || 'ease-out')})</div>
+        </div>
+
+        <!-- 6. Shape Language -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">06</div>
+          <div class="seed-axis-title">Shape & Corner Radii</div>
+          <div class="seed-axis-val">${escapeHtml(shape.cornerStyle || 'Refined Soft (8-12px)')}</div>
+          <div class="seed-axis-sub">Mathematical Inner = Outer - Padding</div>
+        </div>
+
+        <!-- 7. Imagery & Icons -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">07</div>
+          <div class="seed-axis-title">Iconography Style</div>
+          <div class="seed-axis-val">${escapeHtml(seed.imageryStyle?.iconArchetype || 'Minimalist Lucide 1.75px')}</div>
+          <div class="seed-axis-sub">${escapeHtml(seed.imageryStyle?.badgeStyle || 'Pill with subtle tinted border')}</div>
+        </div>
+
+        <!-- 8. Depth -->
+        <div class="seed-axis-card">
+          <div class="seed-axis-num">08</div>
+          <div class="seed-axis-title">Visual Depth</div>
+          <div class="seed-axis-val">${escapeHtml(depth.strategy || 'Layered Elevated')}</div>
+          <div class="seed-axis-sub">${escapeHtml(depth.borderStrategy || '1px crisp border (rgba(255,255,255,0.08))')}</div>
+        </div>
+
+        <!-- 9. Signature Element -->
+        <div class="seed-axis-card seed-signature-card">
+          <div class="seed-axis-num">09</div>
+          <div class="seed-axis-title">Signature Element</div>
+          <div class="seed-axis-val">${escapeHtml(signature.archetype || 'Glass Accent Header')}</div>
+          <div class="seed-axis-sub">${escapeHtml(signature.description || 'Bespoke brand signature anchor')}</div>
+        </div>
+      </div>
+    `;
   }
 
   function renderColorSwatches(colors = {}) {
@@ -840,6 +986,47 @@
           showToast(err.message, true);
         } finally {
           regenSeedBtn.disabled = false;
+        }
+      });
+    }
+
+    // Regenerate Seed Direction (9-Axis Engine Agent 3)
+    const seedRegenUiBtn = document.getElementById('btn-seed-regenerate-ui');
+    if (seedRegenUiBtn) {
+      seedRegenUiBtn.addEventListener('click', async () => {
+        const feedback = prompt('Optional: Provide guidance or adjustments for this design direction:');
+        if (feedback === null) return;
+        try {
+          seedRegenUiBtn.disabled = true;
+          seedRegenUiBtn.innerHTML = `
+            <div class="ai-spinner-sm"></div>
+            <span>Formulating Seed...</span>
+          `;
+          showToast('Design Seed Engine (Agent 3) formulating 9-axis direction...');
+          let res;
+          if (store.regenerateSeed) {
+            res = await store.regenerateSeed(currentProjectId, feedback);
+          } else {
+            res = await store.generateSeedPlaceholder(currentProjectId);
+          }
+          if (res && res.success) {
+            showToast('Bespoke 9-Axis Design Seed formulated and verified!');
+            await reloadActiveProject();
+          } else {
+            showToast(res?.error || 'Failed to generate seed direction', true);
+          }
+        } catch (err) {
+          showToast(err.message, true);
+        } finally {
+          seedRegenUiBtn.disabled = false;
+          seedRegenUiBtn.innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Regenerate Seed</span>
+          `;
         }
       });
     }

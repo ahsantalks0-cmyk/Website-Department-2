@@ -157,6 +157,11 @@
         node.progressPercent = 100;
         node.finishedAt = new Date().toISOString();
         node.output = data?.output !== undefined ? data.output : node.output;
+      } else if (eventType === 'task:waiting_for_user') {
+        node.status = 'waiting_for_user';
+        node.progressPercent = 100;
+        node.finishedAt = new Date().toISOString();
+        node.output = data?.output !== undefined ? data.output : node.output;
       } else if (eventType === 'task:failed') {
         node.status = 'failed';
         node.finishedAt = new Date().toISOString();
@@ -470,6 +475,14 @@
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           `;
+        } else if (nodeStatus === 'waiting_for_user') {
+          iconHtml = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="10" y1="15" x2="10" y2="9"></line>
+              <line x1="14" y1="15" x2="14" y2="9"></line>
+            </svg>
+          `;
         } else if (nodeStatus === 'failed') {
           iconHtml = `
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -521,16 +534,82 @@
               <div class="task-node-status-inline">
                 <span class="orch-status-pill ${statusBadgeClass}" style="padding: 2px 6px; font-size: 10px;">
                   ${iconHtml}
-                  <span>${escapeHtml(nodeStatus)}</span>
+                  <span>${escapeHtml(nodeStatus.replace(/_/g, ' '))}</span>
                 </span>
                 ${attemptsBadge}
               </div>
               <div class="task-node-time" title="Execution duration">${duration}</div>
             </div>
+
+            ${nodeStatus === 'waiting_for_user' ? `
+              <div class="review-gate-inline-actions">
+                <button class="btn btn-primary btn-xs btn-review-approve" data-node-id="${escapeHtml(node.id)}">
+                  ✓ Approve Direction
+                </button>
+                <button class="btn btn-secondary btn-xs btn-review-revise" data-node-id="${escapeHtml(node.id)}">
+                  ↻ Request Revision
+                </button>
+              </div>
+            ` : ''}
           </div>
         `;
       })
       .join('');
+
+    // Attach click handlers to review gate inline buttons
+    nodesContainer.querySelectorAll('.btn-review-approve').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const nid = btn.getAttribute('data-node-id');
+        const api = getOrchestratorApi();
+        if (!api || !activeGraph) return;
+        btn.disabled = true;
+        btn.textContent = 'Approving...';
+        try {
+          if (api.respondToReview) {
+            await api.respondToReview({
+              graphId: activeGraph.graphId,
+              nodeId: nid,
+              approved: true,
+              feedback: 'Approved by user via Task Monitor',
+            });
+          } else {
+            await api.resumeGraph(activeGraph.graphId);
+          }
+          await reloadActiveGraph(activeGraph.graphId);
+        } catch (err) {
+          console.error('[TaskMonitor] Review approval error:', err);
+        }
+      });
+    });
+
+    nodesContainer.querySelectorAll('.btn-review-revise').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const nid = btn.getAttribute('data-node-id');
+        const feedback = prompt('Provide revision feedback or adjustments:');
+        if (feedback === null) return;
+        const api = getOrchestratorApi();
+        if (!api || !activeGraph) return;
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+        try {
+          if (api.respondToReview) {
+            await api.respondToReview({
+              graphId: activeGraph.graphId,
+              nodeId: nid,
+              approved: false,
+              feedback,
+            });
+          } else {
+            await api.resumeGraph(activeGraph.graphId);
+          }
+          await reloadActiveGraph(activeGraph.graphId);
+        } catch (err) {
+          console.error('[TaskMonitor] Review revision error:', err);
+        }
+      });
+    });
 
     // Attach click handlers to open inspector modal
     nodesContainer.querySelectorAll('.task-node-card').forEach((card) => {

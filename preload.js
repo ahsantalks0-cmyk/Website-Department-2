@@ -260,6 +260,10 @@ const orchestratorBridge = {
   runGraph: (graphObject) => {
     return ipcRenderer.invoke('orch:runGraph', graphObject);
   },
+  respondToReview: (payload) => {
+    console.log('[Preload] Invoking orch:respondReview', payload);
+    return ipcRenderer.invoke('orch:respondReview', payload);
+  },
   onEvent: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const subscription = (_event, payload) => {
@@ -296,6 +300,9 @@ const storeBridge = {
   deleteProject: (projectId) => ipcRenderer.invoke('store:deleteProject', projectId),
   exportProject: (projectId, targetPath) => ipcRenderer.invoke('store:exportProject', { projectId, targetPath }),
   importProject: (zipPath) => ipcRenderer.invoke('store:importProject', zipPath),
+  getSeed: (projectId) => ipcRenderer.invoke('seed:get', projectId),
+  regenerateSeed: (projectId, feedback) => ipcRenderer.invoke('seed:regenerate', { projectId, feedback }),
+  getAntiGenericReport: (projectId) => ipcRenderer.invoke('seed:getReport', projectId),
 };
 
 /**

@@ -5186,6 +5186,205 @@ html, body {
   color: var(--text-faint);
 }
 
+/* -------------------------------------------------------------------------- */
+/* DESIGN SEED ENGINE & ANTI-GENERIC SHIELD STYLES                            */
+/* -------------------------------------------------------------------------- */
+
+.seed-craft-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--pill-radius);
+  background: var(--dept-head-subtle);
+  color: var(--dept-head-accent);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.seed-shield-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-subtle);
+}
+
+.seed-shield-banner.shield-pass {
+  background: rgba(52, 199, 89, 0.08);
+  border-color: rgba(52, 199, 89, 0.25);
+  color: #10B981;
+}
+
+.seed-shield-banner.shield-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #F59E0B;
+}
+
+.seed-shield-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.seed-shield-left strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.seed-shield-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.seed-score-badge {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--pill-radius);
+  background: rgba(52, 199, 89, 0.15);
+  color: #10B981;
+  border: 1px solid rgba(52, 199, 89, 0.3);
+}
+
+.seed-axes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .seed-axes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.seed-axis-card {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  transition: border-color var(--transition-fast);
+}
+
+.seed-axis-card:hover {
+  border-color: var(--border-color);
+}
+
+.seed-axis-num {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+}
+
+.seed-axis-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.seed-axis-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.seed-axis-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.seed-signature-card {
+  grid-column: span 3;
+  background: linear-gradient(135deg, var(--surface-subtle) 0%, rgba(99, 102, 241, 0.05) 100%);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+@media (max-width: 900px) {
+  .seed-signature-card {
+    grid-column: span 1;
+  }
+}
+
+.seed-swatches-inline {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+}
+
+.seed-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  display: inline-block;
+}
+
+.seed-empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Review Gate Actions on Cards */
+.review-gate-inline-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.review-gate-inline-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.node-waiting_for_user {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  background: rgba(245, 158, 11, 0.04) !important;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+.status-waiting_for_user {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.btn-xs {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  min-height: 26px !important;
+}
+
+.ai-spinner-sm {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
 
 
 

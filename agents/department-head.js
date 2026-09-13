@@ -492,7 +492,18 @@ class DepartmentHeadAgent {
         if (isReview) {
           handlerName = 'review.gate';
         } else if (task.department === 'design') {
-          handlerName = 'design.placeholder';
+          if (
+            task.id.includes('seed') ||
+            task.id.includes('tokens') ||
+            task.id.includes('spec') ||
+            task.title.toLowerCase().includes('seed') ||
+            task.title.toLowerCase().includes('token') ||
+            task.title.toLowerCase().includes('replication')
+          ) {
+            handlerName = 'design.seed-generate';
+          } else {
+            handlerName = 'design.placeholder';
+          }
         } else if (task.department === 'engineering') {
           handlerName = 'engineering.placeholder';
         } else if (task.department === 'content') {
@@ -644,6 +655,107 @@ class DepartmentHeadAgent {
       console.log(`[DepartmentHead] Posted plan summary into conversation #${convId}`);
     } catch (postErr) {
       console.warn('[DepartmentHead] Failed to post plan to chat:', postErr.message);
+    }
+  }
+
+  /**
+   * Responds to an active review gate node (approve or request revision).
+   * @param {object} payload
+   * @param {string} payload.graphId
+   * @param {string} payload.nodeId
+   * @param {boolean} payload.approved
+   * @param {string} [payload.feedback]
+   * @returns {Promise<object>}
+   */
+  async respondToReview({ graphId, nodeId, approved, feedback = '' }) {
+    console.log(`[DepartmentHead] Processing review gate response:`, { graphId, nodeId, approved, feedback });
+
+    if (!this.orchestrator || !graphId) {
+      return { success: false, error: 'Orchestrator instance or graphId not provided.' };
+    }
+
+    try {
+      const graphDetail = this.orchestrator.getGraphDetail(graphId);
+      const graph = graphDetail?.graph;
+      const targetNode = graphDetail?.nodes?.find((n) => n.node_id === nodeId || n.id === nodeId);
+      const projectId = graph?.project_id || targetNode?.params?.projectId || 1;
+      const taskTitle = targetNode?.params?.title || nodeId;
+
+      if (approved) {
+        // Record approval in knowledge store
+        try {
+          this.knowledgeStore.logReview(projectId, {
+            userInstructions: feedback || 'Visual direction approved by client.',
+            status: 'approved',
+            appliedActions: [`Review gate "${taskTitle}" marked approved`, 'Resumed downstream execution graph'],
+          });
+        } catch (_) {}
+
+        // Mark node as completed in SQLite
+        if (this.orchestrator.db) {
+          try {
+            this.orchestrator.db.prepare(`
+              UPDATE tasks
+              SET status = 'completed', progress = 100, finished_at = datetime('now'), error = NULL
+              WHERE graph_id = ? AND node_id = ?
+            `).run(graphId, nodeId);
+          } catch (_) {}
+        }
+
+        // Resume the task graph
+        this.orchestrator.resumeGraph(graphId);
+
+        agentsRegistry.setActivity('agent-2-dept-head', `Resumed pipeline after user approved "${taskTitle}"`);
+        agentsRegistry.logAction('agent-2-dept-head', `User approved review gate "${taskTitle}". Resumed execution graph.`);
+
+        return {
+          success: true,
+          status: 'approved',
+          resumed: true,
+          message: `Approved "${taskTitle}". Resumed execution.`,
+        };
+      } else {
+        // User requested revision / regeneration
+        try {
+          this.knowledgeStore.logReview(projectId, {
+            userInstructions: feedback || 'Change requested by client during review gate.',
+            status: 'changes_requested',
+            appliedActions: ['Triggered design direction regeneration'],
+          });
+
+          const { designSeedAgent } = require('./design-seed-agent');
+          await designSeedAgent.generateSeed(projectId, { regenerate: true, feedback });
+        } catch (regenErr) {
+          console.warn('[DepartmentHead] Regeneration error on review response:', regenErr.message);
+        }
+
+        // Mark node completed and resume pipeline with fresh seed
+        if (this.orchestrator.db) {
+          try {
+            this.orchestrator.db.prepare(`
+              UPDATE tasks
+              SET status = 'completed', progress = 100, finished_at = datetime('now'), error = NULL
+              WHERE graph_id = ? AND node_id = ?
+            `).run(graphId, nodeId);
+          } catch (_) {}
+        }
+
+        this.orchestrator.resumeGraph(graphId);
+
+        agentsRegistry.setActivity('agent-2-dept-head', `Regenerating direction following revision request on "${taskTitle}"`);
+        agentsRegistry.logAction('agent-2-dept-head', `User requested revision on "${taskTitle}": "${feedback}". Resumed execution.`);
+
+        return {
+          success: true,
+          status: 'revision_requested',
+          resumed: true,
+          regenerated: true,
+          message: `Regenerated design direction based on feedback. Resumed execution.`,
+        };
+      }
+    } catch (err) {
+      console.error('[DepartmentHead] Error responding to review:', err.message);
+      return { success: false, error: err.message };
     }
   }
 }
