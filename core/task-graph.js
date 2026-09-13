@@ -16,6 +16,7 @@ const NodeState = Object.freeze({
   PENDING: 'pending',
   RUNNING: 'running',
   COMPLETED: 'completed',
+  WAITING_FOR_USER: 'waiting_for_user',
   FAILED: 'failed',
   SKIPPED: 'skipped',
   INTERRUPTED: 'interrupted',
@@ -306,6 +307,7 @@ function getNodeStats(graph) {
     pending: 0,
     running: 0,
     completed: 0,
+    waiting_for_user: 0,
     failed: 0,
     skipped: 0,
     interrupted: 0,
@@ -323,14 +325,14 @@ function getNodeStats(graph) {
 
 /**
  * Checks whether the graph has finished execution.
- * Finished means no nodes are currently RUNNING or PENDING.
+ * Finished means no nodes are currently RUNNING, PENDING, or WAITING_FOR_USER.
  *
  * @param {object} graph
  * @returns {boolean}
  */
 function isGraphFinished(graph) {
   const activeNodes = graph.nodes.filter(
-    (n) => n.status === NodeState.RUNNING || n.status === NodeState.PENDING
+    (n) => n.status === NodeState.RUNNING || n.status === NodeState.PENDING || n.status === NodeState.WAITING_FOR_USER
   );
   return activeNodes.length === 0;
 }

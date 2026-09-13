@@ -219,6 +219,32 @@ class TaskRunner {
 
       // Check success
       if (result && result.success) {
+        if (result.status === NodeState.WAITING_FOR_USER || result.waitingForUser) {
+          console.log(`[TaskRunner] Node "${nodeId}" reached review gate (waiting for user) in ${attempt} attempt(s)`);
+          node.status = NodeState.WAITING_FOR_USER;
+          node.progressPercent = 100;
+          node.output = result.output !== undefined ? result.output : null;
+          node.finishedAt = new Date().toISOString();
+          node.error = null;
+
+          eventBus.publish('task:waiting_for_user', {
+            graphId,
+            nodeId,
+            data: {
+              output: node.output,
+              attempts: attempt,
+              message: result.output?.message || 'Waiting for your review',
+            },
+          });
+
+          return {
+            success: true,
+            status: NodeState.WAITING_FOR_USER,
+            output: node.output,
+            attempts: attempt,
+          };
+        }
+
         console.log(`[TaskRunner] Node completed: "${nodeId}" in ${attempt} attempt(s)`);
         node.status = NodeState.COMPLETED;
         node.progressPercent = 100;

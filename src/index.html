@@ -27,7 +27,7 @@
           </div>
           <div class="brand-info">
             <span class="brand-title">AI Design Dept</span>
-            <span class="brand-phase">Phase 6 • Senior Chat</span>
+            <span class="brand-phase">Phase 7 • Dept Head & Matrix</span>
           </div>
         </div>
 
@@ -61,6 +61,18 @@
                 </svg>
                 <span>Projects</span>
                 <span class="nav-badge count-badge" id="projects-count-badge" style="display: none;">0</span>
+              </button>
+            </li>
+            <li>
+              <button class="nav-item" data-target="agents" id="nav-agents" role="menuitem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Agents</span>
+                <span class="nav-badge count-badge" id="agents-count-badge">46</span>
               </button>
             </li>
             <li>
@@ -815,6 +827,70 @@
             </div>
           </div>
         </section>
+
+        <!-- ================================================================ -->
+        <!-- VIEW: AGENTS MATRIX (Phase 7 Department Head & 46 Agents)        -->
+        <!-- ================================================================ -->
+        <section class="view-pane" id="view-agents" aria-labelledby="current-page-title">
+          <div class="view-scroll-container">
+            <div class="agents-view-wrapper">
+              
+              <!-- Agents Overview Header & Metrics -->
+              <div class="agents-header-card">
+                <div class="agents-header-left">
+                  <div class="agents-matrix-badge">
+                    <span class="matrix-pulse-dot"></span>
+                    <span>Department Matrix • 46 Autonomous Agents</span>
+                  </div>
+                  <h2 class="agents-headline">AI Design & Engineering Agents</h2>
+                  <p class="agents-subline">
+                    The department operates as a multi-specialist studio. Senior Chat conducts interviews, Department Head plans & orchestrates, while specialized agents execute across design, code, content, CMS, and QA.
+                  </p>
+                </div>
+                <div class="agents-stats-chips">
+                  <div class="agent-stat-box">
+                    <span class="stat-big-number" id="agents-stat-total">46</span>
+                    <span class="stat-caption">Total Agents</span>
+                  </div>
+                  <div class="agent-stat-box stat-highlight-active">
+                    <span class="stat-big-number" id="agents-stat-active">2</span>
+                    <span class="stat-caption">Active Online</span>
+                  </div>
+                  <div class="agent-stat-box">
+                    <span class="stat-big-number" id="agents-stat-planned">44</span>
+                    <span class="stat-caption">Planned Roadmap</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Search Bar & Department Filter Tabs -->
+              <div class="agents-controls-bar">
+                <div class="agents-search-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input type="text" id="agents-search-input" class="agents-search-input" placeholder="Search agents by name, role, number, or skill..." />
+                </div>
+                <div class="agents-filter-tabs" role="tablist">
+                  <button type="button" class="agents-filter-btn active" data-filter="all">All (46)</button>
+                  <button type="button" class="agents-filter-btn" data-filter="command">Command (6)</button>
+                  <button type="button" class="agents-filter-btn" data-filter="design">Design (8)</button>
+                  <button type="button" class="agents-filter-btn" data-filter="engineering">Engineering (10)</button>
+                  <button type="button" class="agents-filter-btn" data-filter="content">Content (6)</button>
+                  <button type="button" class="agents-filter-btn" data-filter="cms">CMS & Backend (8)</button>
+                  <button type="button" class="agents-filter-btn" data-filter="qa">QA (8)</button>
+                </div>
+              </div>
+
+              <!-- Agents Card Grid -->
+              <div class="agents-grid" id="agents-grid">
+                <!-- Dynamically populated by agents.js -->
+              </div>
+
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -1150,8 +1226,30 @@
     </div>
   </div>
 
+  <!-- Phase 7: Department Head Plan Inspector Modal -->
+  <div class="modal-backdrop" id="agents-plan-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="orch-status-pill status-active">Department Head Execution Plan</span>
+          <h2 class="modal-title">Autonomous Project Task Graph</h2>
+        </div>
+        <button class="modal-close-btn" id="agents-plan-modal-close" aria-label="Close dialog">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body-content" id="agents-plan-modal-content">
+        <!-- Rendered by agents.js -->
+      </div>
+    </div>
+  </div>
+
   <!-- Application Controllers -->
   <script src="./js/chat.js"></script>
+  <script src="./js/agents.js"></script>
   <script src="./js/app.js"></script>
   <script src="./js/dashboard.js"></script>
   <script src="./js/dashboard-tasks.js"></script>

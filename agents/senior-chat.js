@@ -309,8 +309,8 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
             }
           }
 
-          // Trigger HANDOFF STUB in Orchestrator
-          this.triggerDepartmentHeadHandoff(projectId, projectName);
+          // Trigger HANDOFF to Department Head in Orchestrator
+          this.triggerDepartmentHeadHandoff(projectId, projectName, convId);
 
           justCreatedProject = true;
           console.log(`[SeniorChatAgent] Successfully auto-created project #${projectId} ("${projectName}") and triggered handoff!`);
@@ -365,23 +365,25 @@ Change Targets: ${classification.changeTargets?.join(', ') || 'none'}`;
   }
 
   /**
-   * Spawns the Phase 6 Handoff Stub TaskGraph in the live orchestrator.
+   * Spawns the Phase 7 Department Head Plan TaskGraph in the live orchestrator.
    * @param {number|string} projectId
    * @param {string} projectName
+   * @param {number|string} [conversationId]
    */
-  triggerDepartmentHeadHandoff(projectId, projectName) {
+  triggerDepartmentHeadHandoff(projectId, projectName, conversationId = null) {
     try {
-      const graphId = `handoff-${projectId}-${Date.now()}`;
+      const graphId = `project-handoff-${projectId}-${Date.now()}`;
       const graph = new TaskGraph({
         id: graphId,
-        name: `Handoff: ${projectName}`,
+        name: `project-handoff: ${projectName}`,
       });
 
-      graph.addNode('dept-head-handoff', {
-        handler: 'department-head.stub',
+      graph.addNode('dept-head-plan', {
+        handler: 'department-head.plan',
         params: {
           projectId,
           projectName,
+          conversationId,
         },
       });
 

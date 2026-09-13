@@ -18,6 +18,7 @@ const { registerAiHandlers, aiHandler } = require('./ai/ai-handler.js');
 const { registerOrchestratorHandlers, orchestrator } = require('./core/orchestrator-ipc.js');
 const { registerStoreIpcHandlers } = require('./core/store-handler.js');
 const { registerChatIpcHandlers } = require('./agents/chat-handler.js');
+const { registerDepartmentHeadHandlers } = require('./agents/department-head-handler.js');
 
 // Keep global reference of the window object to prevent garbage collection
 let mainWindow = null;
@@ -58,6 +59,8 @@ if (!gotTheLock) {
     registerStoreIpcHandlers();
     console.log('[App] Initializing Phase 6 Senior Chat Agent...');
     registerChatIpcHandlers(aiHandler, orchestrator);
+    console.log('[App] Initializing Phase 7 Department Head Agent & Agents Matrix...');
+    registerDepartmentHeadHandlers(aiHandler, orchestrator);
 
     createWindow();
 

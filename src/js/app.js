@@ -852,6 +852,11 @@
       title: 'Projects',
       subtitle: 'AI Canvas & Generated Interfaces',
     },
+    agents: {
+      id: 'view-agents',
+      title: 'Department Agents',
+      subtitle: '46 Specialized Design & Engineering Autonomous Agents',
+    },
     'project-detail': {
       id: 'view-project-detail',
       title: 'Project Knowledge Store',
@@ -911,6 +916,8 @@
       window.DashboardController.refresh();
     } else if (tabKey === 'projects' && window.ProjectsController) {
       window.ProjectsController.load();
+    } else if (tabKey === 'agents' && window.AgentsController) {
+      window.AgentsController.load();
     } else if (tabKey === 'settings' && window.SettingsAIController) {
       if (typeof window.SettingsAIController.refreshStatus === 'function') {
         window.SettingsAIController.refreshStatus();

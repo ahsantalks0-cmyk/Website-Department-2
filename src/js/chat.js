@@ -423,8 +423,62 @@
       let checklistHtml = '';
       if (isAgent && msg.extracted) {
         const ext = msg.extracted;
+        const isDeptHead = ext.author === 'Department Head';
+
+        // Department Head Collapsible Plan Card
+        if (ext.departmentHeadPlan && Array.isArray(ext.departmentHeadPlan.phases)) {
+          const plan = ext.departmentHeadPlan;
+          let totalTasksCount = 0;
+          plan.phases.forEach((ph) => {
+            if (Array.isArray(ph.tasks)) totalTasksCount += ph.tasks.length;
+          });
+
+          checklistHtml += `
+            <div class="chat-dept-plan-card">
+              <div class="chat-dept-plan-header">
+                <div class="chat-dept-plan-badge">
+                  <span class="plan-pulse-dot"></span>
+                  <span>Execution Graph Compiled (${plan.phases.length} Phases • ${totalTasksCount} Tasks)</span>
+                </div>
+                <button type="button" class="chat-plan-toggle-btn" id="btn-toggle-plan-${msg.id || Date.now()}">
+                  <span>View Details</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+              </div>
+              <div class="chat-dept-plan-body" style="display: none;" id="plan-body-${msg.id || Date.now()}">
+                <div class="chat-dept-plan-reasoning">${this.escapeHtml(plan.reasoning || '')}</div>
+                <div class="chat-dept-plan-phases-list">
+                  ${plan.phases.map((phase, pIdx) => `
+                    <div class="chat-dept-phase-item">
+                      <div class="chat-dept-phase-title">
+                        <span class="phase-num">${pIdx + 1}</span>
+                        <span>${this.escapeHtml(phase.name)}</span>
+                      </div>
+                      <div class="chat-dept-phase-desc">${this.escapeHtml(phase.description || '')}</div>
+                      <div class="chat-dept-tasks-grid">
+                        ${(phase.tasks || []).map((t) => {
+                          const isGate = t.id.startsWith('review-') || t.title.toLowerCase().includes('review') || t.title.toLowerCase().includes('gate');
+                          return `
+                            <div class="chat-dept-task-row ${isGate ? 'task-gate' : ''}">
+                              <div class="task-row-main">
+                                <span class="task-dept-tag tag-${this.escapeHtml(t.department || 'eng')}">${this.escapeHtml(t.department || 'eng').toUpperCase()}</span>
+                                <span class="task-title-text">${this.escapeHtml(t.title)}</span>
+                              </div>
+                              <span class="task-est-text">${t.estimatedMinutes || 15}m</span>
+                            </div>
+                          `;
+                        }).join('')}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
         if (Array.isArray(ext.missingItems) && ext.missingItems.length > 0) {
-          checklistHtml = `
+          checklistHtml += `
             <div class="chat-turn-checklist-card">
               <div class="chat-turn-checklist-header">
                 <span class="chat-turn-checklist-title">
@@ -460,15 +514,24 @@
 
       const formattedText = this.formatMessageText(msg.text || '');
       const isError = Boolean(msg.isError || msg.intent === 'error');
-      const bubbleClass = `chat-bubble${isError ? ' error-bubble' : ''}`;
+      const isDeptHead = isAgent && msg.extracted?.author === 'Department Head';
+      const bubbleClass = `chat-bubble${isError ? ' error-bubble' : ''}${isDeptHead ? ' dept-head-bubble' : ''}`;
+
+      const authorLabel = isAgent
+        ? (isDeptHead ? 'Department Head (Agent 2)' : (isError ? 'Senior Project Lead (Error)' : 'Senior Project Lead (Agent 1)'))
+        : 'You';
+
+      const avatarContent = isAgent
+        ? (isError ? '<span style="color:var(--danger-color);">⚠️</span>' : (isDeptHead ? '<span>DH</span>' : '<span>SP</span>'))
+        : '<span>You</span>';
 
       container.innerHTML = `
-        <div class="chat-avatar">
-          ${isAgent ? (isError ? '<span style="color:var(--danger-color);">⚠️</span>' : '<span>SP</span>') : '<span>You</span>'}
+        <div class="chat-avatar ${isDeptHead ? 'avatar-dept-head' : ''}">
+          ${avatarContent}
         </div>
         <div class="${bubbleClass}">
           <div class="chat-bubble-header">
-            <span class="chat-author-name">${isAgent ? (isError ? 'Senior Project Lead (Error)' : 'Senior Project Lead') : 'You'}</span>
+            <span class="chat-author-name ${isDeptHead ? 'author-dept-head' : ''}">${authorLabel}</span>
             <span class="chat-time">${this.formatMessageTime(msg.created_at)}</span>
           </div>
           ${imagesHtml}
@@ -476,6 +539,20 @@
           ${checklistHtml}
         </div>
       `;
+
+      // Wire plan toggle button if present
+      const togglePlanBtn = container.querySelector(`[id^="btn-toggle-plan-"]`);
+      if (togglePlanBtn) {
+        togglePlanBtn.addEventListener('click', () => {
+          const body = container.querySelector('.chat-dept-plan-body');
+          if (body) {
+            const isHidden = body.style.display === 'none';
+            body.style.display = isHidden ? 'block' : 'none';
+            togglePlanBtn.querySelector('span').textContent = isHidden ? 'Hide Details' : 'View Details';
+            togglePlanBtn.classList.toggle('expanded', isHidden);
+          }
+        });
+      }
 
       // Attach image lightbox triggers
       container.querySelectorAll('.chat-img-thumb').forEach((thumb) => {

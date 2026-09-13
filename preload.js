@@ -318,11 +318,26 @@ const chatBridge = {
   },
 };
 
-// Expose exact `window.ai`, `window.orchestrator`, `window.store`, and `window.chat` namespaces
+/**
+ * Phase 7: Agents Matrix & Department Head Bridge
+ */
+const agentsBridge = {
+  getAll: () => ipcRenderer.invoke('agents:getAll'),
+  getAgent: (idOrNum) => ipcRenderer.invoke('agents:getAgent', idOrNum),
+  getDeptHeadPlan: (projectId) => ipcRenderer.invoke('dept-head:getPlan', projectId),
+};
+
+const deptHeadBridge = {
+  getPlan: (projectId) => ipcRenderer.invoke('dept-head:getPlan', projectId),
+};
+
+// Expose exact `window.ai`, `window.orchestrator`, `window.store`, `window.chat`, and `window.agents` namespaces
 contextBridge.exposeInMainWorld('ai', aiBridge);
 contextBridge.exposeInMainWorld('orchestrator', orchestratorBridge);
 contextBridge.exposeInMainWorld('store', storeBridge);
 contextBridge.exposeInMainWorld('chat', chatBridge);
+contextBridge.exposeInMainWorld('agents', agentsBridge);
+contextBridge.exposeInMainWorld('deptHead', deptHeadBridge);
 
 // Expose on both `window.api` and `window.electronAPI` for developer ergonomics and backward compatibility
 const fullBridge = {
@@ -331,8 +346,10 @@ const fullBridge = {
   orchestrator: orchestratorBridge,
   store: storeBridge,
   chat: chatBridge,
+  agents: agentsBridge,
+  deptHead: deptHeadBridge,
 };
 
 contextBridge.exposeInMainWorld('api', fullBridge);
 contextBridge.exposeInMainWorld('electronAPI', fullBridge);
-console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.store, window.chat, window.api, and window.electronAPI');
+console.log('[Preload] contextBridge initialized with window.ai, window.orchestrator, window.store, window.chat, window.agents, window.deptHead, window.api, and window.electronAPI');
