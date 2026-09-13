@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      manual_version:
+        description: 'Optional manual version override (e.g. 1.0.15)'
+        required: false
+        default: ''
 
 # ==============================================================================
 # GITHUB ACTIONS CI/CD PIPELINE - AI Design Department Desktop Foundation
@@ -119,14 +128,32 @@ jobs:
           NEW_VERSION=$(grep "NEW_VERSION:" version_result.txt | cut -d: -f2)
           rm -f version_result.txt
 
+          MANUAL_INPUT="${{ github.event.inputs.manual_version }}"
+          if [ -n "$MANUAL_INPUT" ]; then
+            echo "Overriding version with manual input: ${MANUAL_INPUT}"
+            NEW_VERSION="${MANUAL_INPUT}"
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = '${MANUAL_INPUT}';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            BUMP_NEEDED="true"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          TARGET_BRANCH="${{ github.ref_name }}"
+          if [ -z "$TARGET_BRANCH" ] || [ "$TARGET_BRANCH" = "HEAD" ]; then
+            TARGET_BRANCH="main"
+          fi
 
           if [ "$BUMP_NEEDED" = "true" ]; then
             echo "Auto-bumped version to: ${NEW_VERSION}"
             git add package.json
             git commit -m "chore(release): bump version to ${NEW_VERSION} [skip ci]"
-            git push origin main || echo "Notice: Push skipped or protected, proceeding with build of ${NEW_VERSION}"
+            git push origin "$TARGET_BRANCH" || git push origin main || git push origin master || echo "Notice: Push skipped or protected, proceeding with build of ${NEW_VERSION}"
           else
             echo "Version ${NEW_VERSION} is unique and clear to build."
           fi
