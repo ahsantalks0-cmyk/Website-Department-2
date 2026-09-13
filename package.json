@@ -1,7 +1,7 @@
 {
   "name": "ai-design-department",
   "productName": "AI Design Department",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Desktop application foundation for AI Design Department with Apple-style UI, auto-updater, and GitHub Actions CI/CD pipeline",
   "author": "AI Design Department",
   "main": "main.js",
